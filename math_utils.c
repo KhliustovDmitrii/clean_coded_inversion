@@ -64,7 +64,7 @@ double scalar_product(double *u, double*v, int vec_len)
         return res;
 }
 
-double ** matrix_product(double *M, double *N, int m1, int m2, int n1, int n2)
+double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2)
 {
 /*
  * This function computes product of two matrices
@@ -95,6 +95,29 @@ double ** matrix_product(double *M, double *N, int m1, int m2, int n1, int n2)
         }
         return res;
 } 
+
+double **transpose(double **M, int m1, int m2)
+{
+/*
+ * This function transposes matrix
+ *Params:
+ *        M: matrix
+ *        m1, m2: int, number of rows and columns for M
+ */
+
+        double **res;
+        int i, j;
+
+        res = (double **)malloc(m2*sizeof(double *));
+        for(i = 0; i < m2; i++){
+                res[i] = (double *)malloc(m1*sizeof(double));
+                for(j = 0; j < m1; j++)
+                        res[i][j] = M[j][i];
+        }
+        
+        return res;
+}
+
 
 double primal_field(double hor_dist, double ver_dist)
 {
@@ -146,7 +169,7 @@ double complex integral(double complex (*f)(double, double*), double *f_pars,
         return result;
 }
 
-double **jacobian(double *(*f)(double*, double*), double *f_pars, double *point,
+double **jacobian(double *f(double*, double*), double *f_pars, double *point,
                   int in_dim, int out_dim, int par_dim, double delta)
 {
 /*
@@ -175,4 +198,23 @@ double **jacobian(double *(*f)(double*, double*), double *f_pars, double *point,
                 point[i]-=delta;        
         }
         return jac;
+}
+
+double *discrepancy(double *diff, double **R, int dim)
+{
+/*
+ * This function computes weighted MSE used as discrepancy measure
+ *Params:
+ *        diff: vector observed - predicted
+ *        R: covariance matrix
+ *        dim: dimensionality of vector
+ */
+        double res;
+        int i;
+        res = 0;
+    
+        for(i = 0; i < dim; i++)
+                res+=(diff[i]*diff[i])/R[i, i];
+        
+        return sqrt(res);
 }
