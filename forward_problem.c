@@ -169,3 +169,36 @@ double *forward_fun_fixed_net(double *freq_arr, int freq_num,
         }
         return res;
 }
+
+double *forward_fun_wrapper(double *x, double *pars, int x_dim, int par_dim)
+{
+/*
+ * This function wraps forward fun into form convenient for gradient computation
+ *Params:
+ *        x: vector of log(resistivity)
+ *        pars: frequencies and other known parameters
+ *        *_dim: dimensionalities 
+ */
+        int freq_num, lay_num, i;
+        double ver_dist, hor_dist, first_thick, step;
+        double *freq_arr, *res_arr;
+
+        freq_num = pars[0];
+        lay_num = pars[1];
+
+        ver_dist = pars[2];
+        hor_dist = pars[3];
+        first_thick = pars[4];
+        step = pars[5];
+
+        freq_arr = (double *)malloc(freq_num*sizeof(double));
+        res_arr = (double *)malloc(lay_num*sizeof(double));
+
+        for(i = 0; i < freq_num; i++)
+                freq_arr[i] = pars[5 + i];
+        for(i = 0; i < lay_num; i++)
+                res_arr[i] = exp(pars[5 + freq_num + i]);
+
+        return forward_fun_fixed_net(freq_arr, freq_num, ver_dist, hor_dist,
+                                     rho_arr, lay_num, first_thick, step);
+}
