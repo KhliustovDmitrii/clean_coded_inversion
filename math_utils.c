@@ -94,6 +94,12 @@ double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2)
                 }
         }
         return res;
+}
+
+double **invert(double **M, int m)
+{
+
+return 0;
 } 
 
 double **transpose(double **M, int m1, int m2)
