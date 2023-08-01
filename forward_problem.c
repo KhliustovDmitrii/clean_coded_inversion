@@ -7,7 +7,7 @@
 
 #define mu0 (M_PI*.4e-6)
 
-double complex impedance(double n0, double omega, double *n_arr, 
+double complex impedance(double n0, double omega, double complex *n_arr, 
                          double *depth_arr, int lay_num)
 {
 /*
@@ -61,6 +61,7 @@ double complex u(double n0, double omega, double ver_dist, double *rho_arr,
 
         imp = impedance(n0, omega, n_arr, depth_arr, lay_num);
         n1 = n_arr[1];
+        free(n_arr);
 
         return exp(-n0*ver_dist)*(n1 - n0*imp)/(2*(n1 + n0*imp));
 }
@@ -73,8 +74,26 @@ double complex spec_dens(double t, double *pars)
  *        t: point of evaluation
  *        pars: parameters of fourier potential
  */
-        return bessel_function(t*pars[0])*t*t*u(t, pars[1], pars[2], pars[3],
-                               pars[4], (int)(pars[5] + 0.1));
+        int i, lay_num;
+        double r, omega, ver_dist;
+        double complex res;
+        double *rho_arr, *depth_arr;
+        r = pars[0];
+        omega = pars[1];
+        ver_dist = pars[2];
+        lay_num = (int)(pars[3]+0.1);
+        rho_arr = (double *)malloc(lay_num*sizeof(double));
+        depth_arr = (double *)malloc(lay_num*sizeof(double));
+        for(i = 0; i < lay_num; i++){
+                rho_arr[i] = pars[4 + i];
+                depth_arr[i] = pars[4 + lay_num + i];
+        }
+        res = bessel_function(t*r)*t*t*u(t, omega,
+                               ver_dist, rho_arr,
+                               depth_arr, lay_num);
+        free(rho_arr);
+        free(depth_arr);
+        return res;
 }
 
 double complex H(double omega, double ver_dist, double hor_dist, 
@@ -93,7 +112,7 @@ double complex H(double omega, double ver_dist, double hor_dist,
 
         double complex int_result;
         double *rho_reduced, *depth_reduced;
-        double pars[6];
+        double *pars;
         double result[2];
         int i, j, lay_num_reduced;
 
@@ -115,15 +134,23 @@ double complex H(double omega, double ver_dist, double hor_dist,
         }
 
         lay_num_reduced = j;
+        pars = (double *)malloc((3 + 2*lay_num_reduced)*sizeof(double));
         omega = omega*2*M_PI;
-        pars = {hor_dist, omega, ver_dist, rho_reduced,
-                depth_reduced, (double)lay_num_reduced};
+        pars[0] = hor_dist;
+        pars[1] = omega;  
+        pars[2] = ver_dist;
+        pars[3] = lay_num_reduced;
+        for(i = 0; i < lay_num_reduced; i++){
+                pars[4 + i] = rho_reduced[i];
+                pars[4 + lay_num_reduced + i] = depth_reduced[i];
+        } 
 
-        int_results = integral(spec_dens, pars, 6, 0, 1, 0.001);
+        int_result = integral(spec_dens, pars, 6, 0, 1, 0.001);
 
-        result[0] = (0.5*M_PI)*int_result*10000*creal(int_result);
-        result[1] = -(0.5*M_PI)*int_result*10000*cimag(int_result);
-
+        result[0] = (0.5*M_PI)*10000*creal(int_result);
+        result[1] = -(0.5*M_PI)*10000*cimag(int_result);
+        free(rho_reduced);
+        free(depth_reduced);
         return result[0] + result[1]*I;
 }
 
@@ -147,7 +174,7 @@ double *forward_fun_fixed_net(double *freq_arr, int freq_num,
  *        vector of (all real component, all imaginary components)
  */
         double *res, *depth_arr;
-        double thick;
+        double thick, Ampl;
         double complex res_fr;
         int i;
 
@@ -167,10 +194,11 @@ double *forward_fun_fixed_net(double *freq_arr, int freq_num,
                 res[i] = creal(res_fr);
                 res[freq_num + i] = cimag(res_fr);
         }
+        free(depth_arr);
         return res;
 }
 
-double *forward_fun_wrapper(double *x, double *pars, int x_dim, int par_dim)
+double *forward_fun_wrapper(double *x, double *pars)
 {
 /*
  * This function wraps forward fun into form convenient for gradient computation
@@ -181,7 +209,7 @@ double *forward_fun_wrapper(double *x, double *pars, int x_dim, int par_dim)
  */
         int freq_num, lay_num, i;
         double ver_dist, hor_dist, first_thick, step;
-        double *freq_arr, *res_arr;
+        double *freq_arr, *rho_arr, *result;
 
         freq_num = pars[0];
         lay_num = pars[1];
@@ -192,13 +220,17 @@ double *forward_fun_wrapper(double *x, double *pars, int x_dim, int par_dim)
         step = pars[5];
 
         freq_arr = (double *)malloc(freq_num*sizeof(double));
-        res_arr = (double *)malloc(lay_num*sizeof(double));
+        rho_arr = (double *)malloc(lay_num*sizeof(double));
 
         for(i = 0; i < freq_num; i++)
                 freq_arr[i] = pars[5 + i];
         for(i = 0; i < lay_num; i++)
-                res_arr[i] = exp(pars[5 + freq_num + i]);
-
-        return forward_fun_fixed_net(freq_arr, freq_num, ver_dist, hor_dist,
+                rho_arr[i] = exp(pars[5 + freq_num + i]);
+        
+        result = forward_fun_fixed_net(freq_arr, freq_num, ver_dist, hor_dist,
                                      rho_arr, lay_num, first_thick, step);
+        free(freq_arr);
+        free(rho_arr);
+
+        return result;
 }

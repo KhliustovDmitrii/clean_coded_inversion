@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <complex.h>
+#include "math_utils.h"
 
 /* 
  *This file contains useful mathematical functions, which do not depend
@@ -45,7 +47,7 @@ double bessel_function(double x)
         return res;
 }
 
-double scalar_product(double *u, double*v, int vec_len)
+double scalar_product(double *u, double *v, int vec_len)
 {
 /*
  * This function computes scalar product of two vectors
@@ -76,7 +78,7 @@ double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2)
  *        res: two dimensional array of double, matrix product
  */
 
-        double ** res;
+        double **res;
 	int i, j, k;
 
         res = (double **)malloc(m1*sizeof(double *));
@@ -94,6 +96,90 @@ double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2)
                 }
         }
         return res;
+}
+
+double **pseudo_inv(double **M, int m1, int m2)
+{
+/*
+ * This function computes pseudoinverse of a matrix
+ *Params:
+ *        M: matrix
+ *        m1, m2: row and column numbers of M
+ */
+        double **res, **MT;
+        MT = transpose(M, m1, m2);
+        res = matrix_product(MT, M, m2, m1, m1, m2);
+        res = invert(res, m2);
+        res = matrix_product(res, MT, m2, m2, m2, m1);
+        free(MT);
+        return(res);
+}
+
+double **invert(double **M, int n)
+{
+/*
+ * This function inverts matrix
+ *Params:
+ *        M: matrix
+ *        m: dimensionality
+ */
+        int i, j, k, ind_row;
+        double temp;
+        double **res;
+
+        res = (double **)malloc(n*sizeof(double *));
+        for(i = 0; i < n; i++){
+                res[i] = (double *)malloc(n*sizeof(double));
+                for(j = 0; j < n; j++)
+                        res[i][j] = 0;
+        }
+        for(i = 0; i < n; i++)
+                res[i][i] = 1;
+
+        for(i = 0; i < n; i++){
+                ind_row = i;
+                while(fabs(M[ind_row][i])<0.0001&&ind_row<n)
+                        ind_row++;
+                if(ind_row > i){
+                        for(j = 0; j < n; j++){
+                                res[i][j]+=res[ind_row][j];
+                                res[ind_row][j] = res[i][j] - res[ind_row][j];
+                                res[i][j]-=res[ind_row][j];
+                                M[i][j]+=M[ind_row][j];
+                                M[ind_row][j] = M[i][j] - M[ind_row][j];
+                                M[i][j]-=M[ind_row][j];
+                        }
+                }
+                temp = 1/M[i][i];
+                for(j = 0; j < n; j++){
+                        M[i][j]*=temp;
+                        res[i][j]*=temp;
+                }
+                for(j = i+1; j < n; j++){
+                        temp = M[j][i];
+                        for(k = i; k < n; k++){
+                                res[j][k] = res[j][k] - temp*res[i][k];
+                                M[j][k] = M[j][k] - temp*M[i][k];
+                        }
+                }
+        }
+        for(i = n-1; i > 0; i--){
+                for(j = i-1; j > 0; j--){
+                        temp = -M[j][i]/M[i][i];
+                        for(k = i; k > j-1; k--){
+                                M[j][k] = M[j][k] + temp*M[i][k];
+                                res[j][k] = res[j][k] + temp*res[i][k];
+                        }
+                }
+        }
+        for(i = 0; i <n; i++){
+                temp = 1/M[i][i];
+                for(j = 0; j < n; j++){
+                         res[i][j]*=temp;
+                }
+        }
+
+return res;
 } 
 
 double **transpose(double **M, int m1, int m2)
@@ -156,20 +242,21 @@ double complex integral(double complex (*f)(double, double*), double *f_pars,
  *        delta: double, discretization parameter
  */
 
-        double result, step;
+        double complex result;
+        double step;
 
         result = 0;
         step = t0;
 
         while (step<t1){
-                result+=*f(step, f_pars)*delta;
-                step+=delta
+                result+=f(step, f_pars)*delta;
+                step+=delta;
         } 
 
         return result;
 }
 
-double **jacobian(double *f(double*, double*), double *f_pars, double *point,
+double **jacobian(double *(*f)(double*, double*), double *f_pars, double *point,
                   int in_dim, int out_dim, int par_dim, double delta)
 {
 /*
@@ -182,7 +269,7 @@ double **jacobian(double *f(double*, double*), double *f_pars, double *point,
  *        delta: double, discretization parameter
  */
         int i, j;
-        double val, val_shifted;
+        double *val, *val_shifted;
         double **jac;
 
         jac = (double **)malloc(out_dim*sizeof(double *));
@@ -194,13 +281,13 @@ double **jacobian(double *f(double*, double*), double *f_pars, double *point,
                 point[i]+=delta;
                 val_shifted = f(point, f_pars);
                 for(j = 0; j < out_dim; j++)
-                        jac[j, i] = (val_shifted[j] - val[j])/delta;
+                        jac[j][i] = (val_shifted[j] - val[j])/delta;
                 point[i]-=delta;        
         }
         return jac;
 }
 
-double *discrepancy(double *diff, double **R, int dim)
+double discrepancy(double *diff, double **R, int dim)
 {
 /*
  * This function computes weighted MSE used as discrepancy measure
@@ -214,7 +301,7 @@ double *discrepancy(double *diff, double **R, int dim)
         res = 0;
     
         for(i = 0; i < dim; i++)
-                res+=(diff[i]*diff[i])/R[i, i];
+                res+=(diff[i]*diff[i])/R[i][i];
         
         return sqrt(res);
 }

@@ -1,12 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include "kalman.h"
+#include "math_utils.h"
+
+#ifndef max
+#define max(a, b)        (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a, b)        (((a) < (b)) ? (a) : (b))
+#endif
+
 
 /* 
  *This file contains code for Kalman filter
  */
 
-double **kalman_step(double *data, double *observed, double *x0,
+double *kalman_step(double *data, double *observed, double *x0,
                 int data_dim, int obs_dim, int x_dim, 
                 double *forward_fun(double*, double*),
                 double **P0, double **Q, double **R,
@@ -36,8 +47,8 @@ double **kalman_step(double *data, double *observed, double *x0,
  *        last - uncertainty estimates for each parameter
  */
         int i, j;
-        double discr;
-        double *diff, *x, *result, *mod_val, *temp;
+        double discr, s;
+        double *diff, *x, *result, *mod_val, *temp, *pars;
         double **H, **K, **P;
        
         x = (double *)malloc(x_dim*sizeof(double));
@@ -47,21 +58,26 @@ double **kalman_step(double *data, double *observed, double *x0,
         result = (double *)malloc((2*x_dim + 1)*sizeof(double));
         diff = (double *)malloc(x_dim*sizeof(double));
         temp = (double *)malloc(x_dim*sizeof(double));
+        pars = (double *)malloc((obs_dim + 2)*sizeof(double));
         j = 0;
         s = stop_val+1;
+        pars[0] = x_dim;
+        pars[1] = obs_dim;
+        for(i = 0; i < obs_dim; j++)
+                pars[2 + i] = observed[i];
 
         while(j<num_iters&&s>stop_val){
                 H = jacobian(forward_fun, observed, x, x_dim, 
                              data_dim, obs_dim, 0.001);
                 K = kalman_gain(P0, H, R, data_dim, x_dim);
-                mod_val = forward_fun(x, observed, x_dim, obs_dim);
+                mod_val = forward_fun(x, observed);
 
                 for(i = 0; i < data_dim; i++)
                         diff[i] = data[i] - mod_val[i];
                 for(i = 0; i < x_dim; i++)
-                        temp[i] = scalar_product(K[i], diff);
+                        temp[i] = scalar_product(K[i], diff, data_dim);
                 for(i = 0; i < x_dim; i++){
-                        x[i] = min(x[i] + temp[i], upper_bound[i]);
+                        x[i] = min(x[i] + temp[i], upper_bounds[i]);
                         x[i] = max(x[i], lower_bounds[i]);         
                 }
 
@@ -71,13 +87,20 @@ double **kalman_step(double *data, double *observed, double *x0,
         }
         for(i = 0; i < x_dim; i++){
                 result[i] = x[i];
-                result[x_dim + i + 1] = 1 - sqrt(P[i, i]/P0[i, i]);
+                result[x_dim + i + 1] = 1 - sqrt(P[i][i]/P0[i][i]);
         }
         result[x_dim] = s;
+        free(diff);
+        free(temp);
+        free(H);
+        free(K);
+        free(P);
+        free(pars);
         return result;
 }
 
-double **kalman_gain(P, H, R, data_dim, x_dim)
+double **kalman_gain(double **P, double **H, double **R, 
+                     int data_dim, int x_dim)
 {       
         int i, j;
         double **K, **HT;
@@ -91,10 +114,12 @@ double **kalman_gain(P, H, R, data_dim, x_dim)
         K = pseudo_inv(K, data_dim, data_dim);
         K = matrix_product(HT, K, x_dim, data_dim, data_dim, data_dim);
         K = matrix_product(P, K, x_dim, x_dim, x_dim, data_dim);
+        free(HT);
         return K;
 }
 
-double **update_cov(P0, K, H, data_dim, x_dim)
+double **update_cov(double **P0, double **K, double **H, 
+                    int data_dim, int x_dim)
 {
         int i, j;
         double **P;
@@ -107,6 +132,6 @@ double **update_cov(P0, K, H, data_dim, x_dim)
                                 P[i][j]+=1;
                 }
         }
-        P = matrix_product(P, P0);
+        P = matrix_product(P, P0, x_dim, x_dim, x_dim, x_dim);
         return P;
 }
