@@ -62,7 +62,7 @@ double scalar_product(double *u, double *v, int vec_len)
 
         res = 0;
         for(i = 0; i < vec_len; i++)
-                res+=u[i]*v[i];
+                res = res + u[i]*v[i];
         return res;
 }
 
@@ -92,7 +92,9 @@ double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2)
 
         for(i = 0; i < m1; i++){
                 for(j = 0; j < n2; j++){
-                        res[i][j] = scalar_product(M[i], N[j], m2);
+                        res[i][j] = 0;
+                        for(k = 0; k < m2; k++)
+                                res[i][j] = res[i][j] + M[i][k]*N[k][j];
                 }
         }
         return res;
@@ -115,7 +117,7 @@ double **pseudo_inv(double **M, int m1, int m2)
         return(res);
 }
 
-double **invert(double **M, int n)
+double **invert(double **mat, int n)
 {
 /*
  * This function inverts matrix
@@ -125,13 +127,17 @@ double **invert(double **M, int n)
  */
         int i, j, k, ind_row;
         double temp;
-        double **res;
+        double **res, **M;
 
         res = (double **)malloc(n*sizeof(double *));
+        M = (double **)malloc(n*sizeof(double *));
         for(i = 0; i < n; i++){
                 res[i] = (double *)malloc(n*sizeof(double));
-                for(j = 0; j < n; j++)
+                M[i] = (double *)malloc(n*sizeof(double));
+                for(j = 0; j < n; j++){
                         res[i][j] = 0;
+                        M[i][j] = mat[i][j];
+                }
         }
         for(i = 0; i < n; i++)
                 res[i][i] = 1;
@@ -163,8 +169,8 @@ double **invert(double **M, int n)
                         }
                 }
         }
-        for(i = n-1; i > 0; i--){
-                for(j = i-1; j > 0; j--){
+        for(i = n-1; i >= 0; i--){
+                for(j = i-1; j >= 0; j--){
                         temp = -M[j][i]/M[i][i];
                         for(k = i; k > j-1; k--){
                                 M[j][k] = M[j][k] + temp*M[i][k];
@@ -221,12 +227,14 @@ double primal_field(double hor_dist, double ver_dist)
         double R[3] = {hor_dist, 0, ver_dist};
        
         MR = scalar_product(R, R, 3);
-        k = M / MR / sqrt(MR) / 4 / M_PI;
+        k = 1 / MR / sqrt(MR) / 4 / M_PI;
         Hp[0] = (3*R[0]*R[2] / MR)*k;
         Hp[1] = (3*R[1]*R[2] / MR)*k;
         Hp[2] = (3*R[2]*R[2] / MR - 1)*k;
         
-        res = sqrt(scalar_product(Hp, Hp, 3));
+        res = Hp[0]*Hp[0] + Hp[1]*Hp[1] + Hp[2]*Hp[2];
+
+        res = sqrt(res);
         return res;
 }
 

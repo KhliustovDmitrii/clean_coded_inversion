@@ -56,11 +56,11 @@ double complex u(double n0, double omega, double ver_dist, double *rho_arr,
         n_arr = (double complex *)malloc(lay_num*sizeof(double complex));
 
         for(i = 0; i < lay_num; i++){
-                n_arr[i] = csqrt(n0*n0 - omega*mu0/rho_arr[i]);
+                n_arr[i] = csqrt(n0*n0 - I*omega*mu0/rho_arr[i]);
         }
 
         imp = impedance(n0, omega, n_arr, depth_arr, lay_num);
-        n1 = n_arr[1];
+        n1 = n_arr[0];
         free(n_arr);
 
         return exp(-n0*ver_dist)*(n1 - n0*imp)/(2*(n1 + n0*imp));

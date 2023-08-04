@@ -8,7 +8,7 @@ double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2);
 
 double **pseudo_inv(double **M, int m1, int m2);
 
-double **invert(double **M, int n);
+double **invert(double **mat, int n);
 
 double **transpose(double **M, int m1, int m2);
 
