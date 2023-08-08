@@ -8,24 +8,30 @@
 
 int main()
 {
-        double *depth_arr, *rho_arr;
+        double *rho_arr, *freq_arr, *res;
         double complex imp;
-        int lay_num;
+        int i;
 
-        rho_arr = (double *)malloc(3*sizeof(double));
-        depth_arr = (double *)malloc(2*sizeof(double));
+        rho_arr = (double *)malloc(10*sizeof(double));
+        freq_arr = (double *)malloc(1000*sizeof(double));
 
-        rho_arr[0] = 100;
-        rho_arr[1] = 200;
-        rho_arr[2] = 300;
+        for(i = 0; i < 10; i++)
+                rho_arr[i] = 100+50*i;
+        for(i = 0; i < 1000; i++)
+                freq_arr[i] = 100 + 100*i;
 
-        depth_arr[0] = 10;
-        depth_arr[1] = 20;
-
-        imp = H(100, 100, 50, rho_arr, depth_arr, 3)*1.E7;
-
-        printf("%.10f + %.10fi", creal(imp), cimag(imp));
-        free(depth_arr);
+        //imp = H(100, 100, 50, rho_arr, depth_arr, 3)*1.E7;
+        //imp = u(0.01, 100, 100, rho_arr, depth_arr, 3)*1.E7;
+        //imp = spec_dens(0.001, pars);
+        res = forward_fun_fixed_net(freq_arr, 1000, 100, 50,
+                                    rho_arr, 10, 5, 1.1);
+        for(i = 0; i < 500; i++)
+                printf("%f, ", res[i]);
+        printf("\n\n\n");
+        for(i = 500; i < 1000; i++)
+                printf("%f, ", res[i]);
+        free(freq_arr);
         free(rho_arr);
+        free(res);
         return 0;
 }

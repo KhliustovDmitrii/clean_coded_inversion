@@ -83,11 +83,12 @@ double complex spec_dens(double t, double *pars)
         ver_dist = pars[2];
         lay_num = (int)(pars[3]+0.1);
         rho_arr = (double *)malloc(lay_num*sizeof(double));
-        depth_arr = (double *)malloc(lay_num*sizeof(double));
-        for(i = 0; i < lay_num; i++){
+        depth_arr = (double *)malloc((lay_num-1)*sizeof(double));
+        for(i = 0; i < lay_num; i++)
                 rho_arr[i] = pars[4 + i];
-                depth_arr[i] = pars[4 + lay_num + i];
-        }
+        for(i = 1; i < lay_num; i++)
+                depth_arr[i-1] = pars[3 + lay_num + i];
+      
         res = bessel_function(t*r)*t*t*u(t, omega,
                                ver_dist, rho_arr,
                                depth_arr, lay_num);
@@ -123,32 +124,34 @@ double complex H(double omega, double ver_dist, double hor_dist,
         depth_reduced[0] = depth_arr[0];
 
         j = 0;
-        for(i = 1; i < lay_num; i ++){
+        for(i = 1; i < lay_num; i++){
                 if(fabs(rho_reduced[j] - rho_arr[i]) < 0.01){
-                        depth_reduced[j]+=depth_arr[i];
+                        if(i < lay_num - 1)
+                                depth_reduced[j]+=depth_arr[i];
                 } else {
                         j++;
                         rho_reduced[j] = rho_arr[i];
-                        depth_reduced[j] = depth_arr[i];
+                        if(i < lay_num - 1)
+                                depth_reduced[j] = depth_arr[i];
                 }
         }
 
-        lay_num_reduced = j;
+        lay_num_reduced = j+1;
         pars = (double *)malloc((3 + 2*lay_num_reduced)*sizeof(double));
         omega = omega*2*M_PI;
         pars[0] = hor_dist;
         pars[1] = omega;  
         pars[2] = ver_dist;
         pars[3] = lay_num_reduced;
-        for(i = 0; i < lay_num_reduced; i++){
+        for(i = 0; i < lay_num_reduced; i++)
                 pars[4 + i] = rho_reduced[i];
-                pars[4 + lay_num_reduced + i] = depth_reduced[i];
-        } 
+        for(i = 1; i < lay_num_reduced; i++)
+                pars[3 + lay_num_reduced + i] = depth_reduced[i];
 
-        int_result = integral(spec_dens, pars, 6, 0, 1, 0.001);
+        int_result = integral(spec_dens, pars, 6, 0, 1, 0.0001);
 
-        result[0] = (0.5*M_PI)*10000*creal(int_result);
-        result[1] = -(0.5*M_PI)*10000*cimag(int_result);
+        result[0] = (0.5/M_PI)*10000*creal(int_result);
+        result[1] = -(0.5/M_PI)*10000*cimag(int_result);
         free(rho_reduced);
         free(depth_reduced);
         return result[0] + result[1]*I;
@@ -179,10 +182,10 @@ double *forward_fun_fixed_net(double *freq_arr, int freq_num,
         int i;
 
         res = (double *)malloc(2*freq_num*sizeof(double));
-        depth_arr = (double *)malloc(lay_num*sizeof(double));
+        depth_arr = (double *)malloc((lay_num-1)*sizeof(double));
         thick = first_thick;
-        for(i = 0; i < lay_num; i++){
-                depth_arr[i] = thick;
+        for(i = 1; i < lay_num; i++){
+                depth_arr[i-1] = thick;
                 thick*=step;
         }
 
@@ -205,7 +208,6 @@ double *forward_fun_wrapper(double *x, double *pars)
  *Params:
  *        x: vector of log(resistivity)
  *        pars: frequencies and other known parameters
- *        *_dim: dimensionalities 
  */
         int freq_num, lay_num, i;
         double ver_dist, hor_dist, first_thick, step;

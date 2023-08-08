@@ -257,7 +257,7 @@ double complex integral(double complex (*f)(double, double*), double *f_pars,
         step = t0;
 
         while (step<t1){
-                result+=f(step, f_pars)*delta;
+                result = result + f(step, f_pars)*delta;
                 step+=delta;
         } 
 
