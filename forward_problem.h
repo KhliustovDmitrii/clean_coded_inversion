@@ -17,6 +17,6 @@ double *forward_fun_fixed_net(double *freq_arr, int freq_num,
                               double *rho_arr, int lay_num,
                               double first_thick, double step);
 
-double *forward_fun_wrapper(double *x, double *pars, int x_dim, int par_dim);
+double *forward_fun_wrapper(double *x, double *pars);
 
 #endif

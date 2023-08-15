@@ -19,7 +19,7 @@
 
 double *kalman_step(double *data, double *observed, double *x0,
                 int data_dim, int obs_dim, int x_dim, 
-                double *forward_fun(double*, double*),
+                double* (*forward_fun)(double*, double*),
                 double **P0, double **Q, double **R,
                 double *lower_bounds, double *upper_bounds,
                 int num_iters, double stop_val
@@ -48,7 +48,7 @@ double *kalman_step(double *data, double *observed, double *x0,
  */
         int i, j;
         double discr, s;
-        double *diff, *x, *result, *mod_val, *temp, *pars;
+        double *diff, *x, *result, *mod_val, *temp;
         double **H, **K, **P;
        
         x = (double *)malloc(x_dim*sizeof(double));
@@ -56,26 +56,25 @@ double *kalman_step(double *data, double *observed, double *x0,
                 x[i] = x0[i];
 
         result = (double *)malloc((2*x_dim + 1)*sizeof(double));
-        diff = (double *)malloc(x_dim*sizeof(double));
+        diff = (double *)malloc(data_dim*sizeof(double));
         temp = (double *)malloc(x_dim*sizeof(double));
-        pars = (double *)malloc((obs_dim + 2)*sizeof(double));
         j = 0;
         s = stop_val+1;
-        pars[0] = x_dim;
-        pars[1] = obs_dim;
-        for(i = 0; i < obs_dim; j++)
-                pars[2 + i] = observed[i];
 
         while(j<num_iters&&s>stop_val){
                 H = jacobian(forward_fun, observed, x, x_dim, 
                              data_dim, obs_dim, 0.001);
                 K = kalman_gain(P0, H, R, data_dim, x_dim);
                 mod_val = forward_fun(x, observed);
-
+                for(i = 0; i < data_dim; i++)
+                        printf("%f\n", mod_val[i]);
                 for(i = 0; i < data_dim; i++)
                         diff[i] = data[i] - mod_val[i];
-                for(i = 0; i < x_dim; i++)
+                for(i = 0; i < x_dim; i++){
                         temp[i] = scalar_product(K[i], diff, data_dim);
+                        if(num_iters >= 5 && j >= 3)
+                                temp[i]/j;
+                }
                 for(i = 0; i < x_dim; i++){
                         x[i] = min(x[i] + temp[i], upper_bounds[i]);
                         x[i] = max(x[i], lower_bounds[i]);         
@@ -95,7 +94,8 @@ double *kalman_step(double *data, double *observed, double *x0,
         free(H);
         free(K);
         free(P);
-        free(pars);
+        free(x);
+        free(mod_val);
         return result;
 }
 

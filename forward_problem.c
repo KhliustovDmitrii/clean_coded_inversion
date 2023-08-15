@@ -26,7 +26,7 @@ double complex impedance(double n0, double omega, double complex *n_arr,
         imp = 1;
         n1 = n_arr[lay_num - 1];
 
-        for(i = lay_num - 1; i > 0; i --){
+        for(i = lay_num - 1; i > 0; i--){
                 n2 = n1;
                 n1 = n_arr[i-1];
                 imp = ctanh(n1*depth_arr[i-1] + catanh(n1/n2*imp));
@@ -92,6 +92,10 @@ double complex spec_dens(double t, double *pars)
         res = bessel_function(t*r)*t*t*u(t, omega,
                                ver_dist, rho_arr,
                                depth_arr, lay_num);
+//        printf("n0 = %f, sp_dens = %f + %fj \n", t, creal(res)*1.E10,
+//               cimag(res)*1.E10);
+//        printf("n0 = %f, bf = %f\n", t, bessel_function(t*r));
+
         free(rho_arr);
         free(depth_arr);
         return res;
@@ -111,14 +115,15 @@ double complex H(double omega, double ver_dist, double hor_dist,
  *        lay_num: number of layers
  */
 
-        double complex int_result;
+        double complex int_result, a;
         double *rho_reduced, *depth_reduced;
         double *pars;
         double result[2];
+        double n0;
         int i, j, lay_num_reduced;
 
         rho_reduced = (double *)malloc(lay_num*sizeof(double));
-        depth_reduced = (double *)malloc(lay_num*sizeof(double));
+        depth_reduced = (double *)malloc((lay_num-1)*sizeof(double));
 
         rho_reduced[0] = rho_arr[0];
         depth_reduced[0] = depth_arr[0];
@@ -148,8 +153,15 @@ double complex H(double omega, double ver_dist, double hor_dist,
         for(i = 1; i < lay_num_reduced; i++)
                 pars[3 + lay_num_reduced + i] = depth_reduced[i];
 
-        int_result = integral(spec_dens, pars, 6, 0, 1, 0.0001);
+        //int_result = integral(spec_dens, pars, 3+2*lay_num_reduced,
+        //                      0, 1, 0.001);
+        int_result = 0;
 
+        for(n0 = 0.001; n0 < 1; n0+=0.001){
+                a = spec_dens(n0, pars);
+                //printf("n0 = %f, %f, %f\n", n0, creal(a)*1.E10, cimag(a)*1.E10);
+                int_result+=a*0.001;
+        }
         result[0] = (0.5/M_PI)*10000*creal(int_result);
         result[1] = -(0.5/M_PI)*10000*cimag(int_result);
         free(rho_reduced);
@@ -225,9 +237,9 @@ double *forward_fun_wrapper(double *x, double *pars)
         rho_arr = (double *)malloc(lay_num*sizeof(double));
 
         for(i = 0; i < freq_num; i++)
-                freq_arr[i] = pars[5 + i];
+                freq_arr[i] = pars[6 + i];
         for(i = 0; i < lay_num; i++)
-                rho_arr[i] = exp(pars[5 + freq_num + i]);
+                rho_arr[i] = exp(x[i]);
         
         result = forward_fun_fixed_net(freq_arr, freq_num, ver_dist, hor_dist,
                                      rho_arr, lay_num, first_thick, step);

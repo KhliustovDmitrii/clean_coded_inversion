@@ -264,7 +264,7 @@ double complex integral(double complex (*f)(double, double*), double *f_pars,
         return result;
 }
 
-double **jacobian(double *(*f)(double*, double*), double *f_pars, double *point,
+double **jacobian(double* (*f)(double*, double*), double *f_pars, double *point,
                   int in_dim, int out_dim, int par_dim, double delta)
 {
 /*
