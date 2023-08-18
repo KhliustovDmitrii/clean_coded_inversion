@@ -5,10 +5,20 @@
 #include "math_utils.h"
 #include "forward_problem.h"
 #include "kalman.h"
+#include "data_processing.h"
 
 int main()
 {
-        
+
+        double args[19] = {15, 25, 4, 1.1085, 77, 231, 385, 540, 694, 848,
+                           1003, 1466, 1620, 1775, 2855, 4244, 5324, 9799,
+                           15046};
+        data_inversion("input", "output", args);
+        return 0;
+
+
+
+        /* 
         double *rho_arr, *freq_arr, *resp, *res, *observed, *x0;
         double *lower_bounds, *upper_bounds;
         double **P0, **Q, **R;
@@ -99,7 +109,7 @@ int main()
         free(resp);
         free(observed);
         return 0;
-        
+        */
         /*double *rho_arr, *depth_arr;
         double complex res;
 
