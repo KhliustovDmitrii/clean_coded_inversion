@@ -1,24 +1,26 @@
 #ifndef __MATH_UTILS_INCLUDED__
 #define __MATH_UTILS_INCLUDED__
-double bessel_function(double x);
+long double bessel_function(long double x);
 
-double scalar_product(double *u, double *v, int vec_len);
+long double scalar_product(long double *u, long double *v, int vec_len);
 
-double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2);
+long double **matrix_product(long double **M, long double **N, int m1, int m2, int n1, int n2);
 
-double **pseudo_inv(double **M, int tm1, int m2);
+long double **pseudo_inv(long double **M, int tm1, int m2);
 
-double **invert(double **mat, int n);
+long double **invert(long double **mat, int n);
 
-double **transpose(double **M, int m1, int m2);
+long double **transpose(long double **M, int m1, int m2);
 
-double primal_field(double hor_dist, double ver_dist);
+long double **cholesky(long double **M, int m);
 
-double _Complex integral(double _Complex (*f)(double, double*), double *f_pars,
-                        int par_num, double t0, double t1, double delta);
+long double primal_field(long double hor_dist, long double ver_dist);
 
-double **jacobian(double* (*f)(double*, double*), double *f_pars, double *point,
-                  int in_dim, int out_dim, int par_dim, double delta);
+long double _Complex integral(long double _Complex (*f)(long double, long double*), long double *f_pars,
+                        int par_num, long double t0, long double t1, long double delta);
 
-double discrepancy(double *diff, double **R, int dim);
+long double **jacobian(long double* (*f)(long double*, long double*), long double *f_pars, long double *point,
+                  int in_dim, int out_dim, int par_dim, long double delta);
+
+long double discrepancy(long double *diff, long double **R, int dim);
 #endif

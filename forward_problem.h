@@ -1,22 +1,25 @@
 #ifndef __FORWARD_H_INCLUDED
 #define __FORWARD_H_INCLUDED
 
-double _Complex impedance(double n0, double omega, double _Complex *n_arr,
-                         double *depth_arr, int lay_num);
+long double _Complex impedance(long double n0, long double omega,
+                               long double _Complex *n_arr,
+                               long double *depth_arr, int lay_num);
 
-double _Complex u(double n0, double omega, double ver_dist, double *rho_arr,
-                 double *depth_arr, int lay_num);
+long double _Complex u(long double n0, long double omega, long double ver_dist,
+                       long double *rho_arr,
+                       long double *depth_arr, int lay_num);
 
-double _Complex spec_dens(double t, double *pars);
+long double _Complex spec_dens(long double t, long double *pars);
 
-double _Complex H(double omega, double ver_dist, double hor_dist,
-                 double *rho_arr, double *depth_arr, int lay_num);
+long double _Complex H(long double omega, long double ver_dist,
+                       long double hor_dist, long double *rho_arr,
+                       long double *depth_arr, int lay_num);
 
-double *forward_fun_fixed_net(double *freq_arr, int freq_num,
-                              double ver_dist, double hor_dist,
-                              double *rho_arr, int lay_num,
-                              double first_thick, double step);
+long double *forward_fun_fixed_net(long double *freq_arr, int freq_num,
+                              long double ver_dist, long double hor_dist,
+                              long double *rho_arr, int lay_num,
+                              long double first_thick, long double step);
 
-double *forward_fun_wrapper(double *x, double *pars);
+long double *forward_fun_wrapper(long double *x, long double *pars);
 
 #endif
