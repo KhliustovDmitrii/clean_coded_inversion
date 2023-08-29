@@ -71,10 +71,11 @@ long double *kalman_sequential(long double *data, long double *observed,
         while(j<num_iters&&s>stop_val){
                 H = jacobian(forward_fun, observed, x, x_dim,
                              data_dim, obs_dim, 0.001);
+
                 for(i = 0; i < data_dim; i++){
                         mod_val = forward_fun(x, observed);
 
-                        for(k = 0; k < data_dim; k++)
+                       for(k = 0; k < data_dim; k++)
                                 diff[k] = data[k] - mod_val[k];
 
                         for(k = 0; k < x_dim; k++){

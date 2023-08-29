@@ -21,7 +21,10 @@ int data_inversion(char *input_file, char *output_file, long double *args)
         long double **P0, **Q, **R;
         char buf[2000];
         long double first_thick, step, temp, hor_dist, alt_T, alt_B;
-        int freq_num, lay_num, i, j, k; 
+        int freq_num, lay_num, i, j, k, pos; 
+        size_t n = 0;
+        long double *values;
+
 
         if(!fin || !fout){
                 printf("Error opening files");
@@ -41,39 +44,45 @@ int data_inversion(char *input_file, char *output_file, long double *args)
         P0 = (long double **)malloc(lay_num*sizeof(long double *));
         Q = (long double **)malloc(lay_num*sizeof(long double *));
         R = (long double **)malloc(2*freq_num*sizeof(long double *));
-
-        for(i = 0; i < lay_num; i++){
-                x0[i] = log(300);
-                P0[i] = (long double *)malloc(lay_num*sizeof(long double));
-                Q[i] = (long double *)malloc(lay_num*sizeof(long double));
-                for(j = 0; j < lay_num; j++){
-                        if(i==j){
-                               P0[i][j] = 0.09;
-                        } else{
-                               P0[i][j] = 0.;
-                        }
-                        Q[i][j] = 0.;
-                }
-        }
-
-         for(i = 0; i < 2*freq_num; i++){
-                R[i] = (long double *)malloc(2*freq_num*sizeof(long double));
-                for(j = 0; j < 2*freq_num; j++){
-                        if(i==j){
-                               R[i][j] = 0.5;
-                        } else{
-                               R[i][j] = 0.;
-                        }
-                }
-        }
-
+        data = (long double *)malloc(2*freq_num*sizeof(long double));
+        values = (long double *)malloc((3 + 2*freq_num)*sizeof(long double));
+        
         for(i = 0; i < freq_num; i++)
                 freq_arr[i] = args[4 + i];
         for(i = 0; i < lay_num; i++){
                 lower_bounds[i] = log(0.1);
                 upper_bounds[i] = log(5000.);
         }
-        
+
+        for(i = 0; i < lay_num; i++){
+                x0[i] = log(args[3*freq_num + 4]);
+                P0[i] = (long double *)malloc(lay_num*sizeof(long double));
+                Q[i] = (long double *)malloc(lay_num*sizeof(long double));
+                for(j = 0; j < lay_num; j++){
+                        if(i==j){
+                               P0[i][j] = args[3*freq_num + 5];
+                        } else{
+                               P0[i][j] = 0.;
+                        }
+                        Q[i][j] = 0.;
+                }
+                if(i < lay_num - 1)
+                        P0[i][i+1] = args[3*freq_num + 6];
+                if(i > 0)
+                        P0[i][i-1] = args[3*freq_num + 6];
+        }
+
+         for(i = 0; i < 2*freq_num; i++){
+                R[i] = (long double *)malloc(2*freq_num*sizeof(long double));
+                for(j = 0; j < 2*freq_num; j++){
+                        if(i==j){
+                               R[i][j] = args[4+freq_num+i];
+                        } else{
+                               R[i][j] = 0.;
+                        }
+                }
+        }
+
 
         memset(buf,0,sizeof(buf));
 
@@ -99,25 +108,27 @@ int data_inversion(char *input_file, char *output_file, long double *args)
                 alt_T = 0;
                 alt_B = 0;
                 for(j = 0; j < 2*freq_num; j++)
-                        data[i] = 0;
+                        data[j] = 0;
                 for(k = 0; k < 4; k++){
                         fgets(buf,2000,fin);
-                        sscanf(buf, "%Lf", &temp);
-                        hor_dist+=temp;
-                        sscanf(buf, "%Lf", &temp);
-                        alt_T+=temp;
-                        sscanf(buf, "%Lf", &temp);
-                        alt_B+=temp;
+                        char *p = buf;
+                        n = 0;
+                        for(pos = 0; n < 3 + 2*freq_num &&
+                        sscanf(p, "%Lf%n", values + n, &pos)==1; p+=pos){
+                                ++n;
+                        }
+                        hor_dist+=values[0];
+                        alt_T+=values[1];
+                        alt_B+=values[2];
                         for(j = 0; j < 2*freq_num; j++){
-                                sscanf(buf, "%Lf", &temp);
-                                data[i]+=temp;
+                                data[j]+=values[3+j];
                         }
                 }
                 hor_dist/=4;
                 alt_T/=4;
                 alt_B/=4;
                 for(j = 0; j < 2*freq_num; j++)
-                        data[i]/=4;
+                        data[j]/=4;
 
                 observed[0] = freq_num;
                 observed[1] = lay_num;
@@ -133,12 +144,16 @@ int data_inversion(char *input_file, char *output_file, long double *args)
                              lay_num, forward_fun_wrapper,
                              P0, Q, R, lower_bounds, upper_bounds, 10, 1.);
 
-                for(j = 0; j < freq_num; j++)
-                        fprintf(fout, "%lf ", exp(result[i]));
-
-                for(j = freq_num; j < 2*freq_num+1; j++)
-                        fprintf(fout, "%Lf ", result[i]);
+                for(j = 0; j < lay_num; j++){
+                        fprintf(fout, "%lf, ", exp(result[j]));
+                        x0[j] = result[j];
                 }
+                for(j = lay_num; j < 2*lay_num+1; j++)
+                        fprintf(fout, "%Lf, ", result[j]);
+                
+                fprintf(fout, "\n");
+                }
+                
         free(lower_bounds);
         free(upper_bounds);
         free(P0);

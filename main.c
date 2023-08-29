@@ -2,18 +2,91 @@
 #include <math.h>
 #include <stdlib.h>
 #include <complex.h>
+#include <string.h>
 #include "math_utils.h"
 #include "forward_problem.h"
 #include "kalman.h"
 #include "data_processing.h"
 
 int main()
-{
+{       
+
+        FILE *conf = fopen("configuration.txt", "rt");
+        char buf[2000];
+        int i, freq_num, pos;
+        size_t n = 0;
+        long double *values, *args;
+
+        memset(buf,0,sizeof(buf));
+
+        //Read freq num
+        fgets(buf, 2000, conf);
+        fgets(buf, 2000, conf);
+        freq_num = atoi(buf);
+        values = (long double *)malloc((2*freq_num)*sizeof(long double));
+        args = (long double *)malloc((7 + 3*freq_num)*sizeof(long double));
+        args[0] = freq_num;
         
-        long double args[19] = {15, 25, 4, 1.1085, 77, 231, 385, 540, 694, 848,
-                           1003, 1466, 1620, 1775, 2855, 4244, 5324, 9799,
-                           15046};
-        data_inversion("input", "output", args);
+        //Read lay_num, first_thick, step
+        fgets(buf, 2000, conf);
+        fgets(buf, 2000, conf);
+        char *p = buf;
+        for(pos = 0; n < 3 &&
+                sscanf(p, "%Lf%n", values + n, &pos)==1; p+=pos){
+                        ++n;
+                }
+        n = 0;
+        args[1] = values[0];
+        args[2] = values[1];
+        args[3] = values[2];
+
+        //Read freqs
+        fgets(buf, 2000, conf);
+        fgets(buf, 2000, conf);
+        p = buf;
+        for(pos = 0; n < freq_num &&
+                sscanf(p, "%Lf%n", values + n, &pos)==1; p+=pos){
+                        ++n;
+                }
+        for(i = 0; i < freq_num; i++)
+                args[4+i] = values[i];
+        n = 0;
+        //Read R_i_i
+        fgets(buf, 2000, conf);
+        fgets(buf, 2000, conf);
+        p = buf;
+        for(pos = 0; n < 2*freq_num &&
+                sscanf(p, "%Lf%n", values + n, &pos)==1; p+=pos){
+                        ++n;
+                }
+        for(i = 0; i < 2*freq_num; i++)
+                args[4+freq_num+i] = values[i];
+        n = 0;
+        //Read initial half-space resistivity
+        fgets(buf, 2000, conf);
+        fgets(buf, 2000, conf);
+        p = buf;
+        for(pos = 0; n < freq_num &&
+                sscanf(p, "%Lf%n", values + n, &pos)==1; p+=pos){
+                        ++n;
+                }
+        args[3*freq_num + 4] = values[0];
+        n = 0;
+        //Read P0[0][0], P0[0][1]
+        fgets(buf, 2000, conf);
+        fgets(buf, 2000, conf);
+        p = buf;
+        for(pos = 0; n < 2 &&
+                sscanf(p, "%Lf%n", values + n, &pos)==1; p+=pos){
+                        ++n;
+                }
+
+        args[3*freq_num + 5] = values[0];
+        args[3*freq_num + 6] = values[1];
+        n = 0;
+        i = data_inversion("data.txt", "inversion_result.txt", args);
+        free(values);
+        free(args);
         return 0;
         
 
@@ -25,7 +98,7 @@ int main()
         long double complex imp;
         int i, j, lay_num, freq_num;
         lay_num = 2;
-        freq_num = 15;
+        freq_num = 5;
 
         rho_arr = (long double *)malloc(lay_num*sizeof(long double));
         freq_arr = (long double *)malloc(freq_num*sizeof(long double));
@@ -89,7 +162,7 @@ int main()
 
         res = kalman_sequential(resp, observed, x0, 2*freq_num, 6+freq_num,
                           lay_num, forward_fun_wrapper,
-                          P0, Q, R, lower_bounds, upper_bounds, 5, 1.);
+                          P0, Q, R, lower_bounds, upper_bounds, 10, 1.);
 
         for(i = 0; i < lay_num; i++)
                 printf("result: %lf\n", exp(res[i]));
