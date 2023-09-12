@@ -9,17 +9,17 @@
  *on actual geological parameters
  */
 
-double bessel_function(double x)
+long double bessel_function(long double x)
 {
 /*
  * This function computes Bessel function of first kind order zero
  *Params:
- *        x: double, point in which to evaluate
+ *        x: long double, point in which to evaluate
  *Returns:
- *        res: double, the value of the function
+ *        res: long double, the value of the function
  */
-        double abs_x, x_squared, x_corrected, z, z_squared, term_1, term_2;
-        double res;
+        long double abs_x, x_squared, x_corrected, z, z_squared, term_1, term_2;
+        long double res;
 
         abs_x = fabs(x);
         if(abs_x < 8.0){
@@ -47,43 +47,43 @@ double bessel_function(double x)
         return res;
 }
 
-double scalar_product(double *u, double *v, int vec_len)
+long double scalar_product(long double *u, long double *v, int vec_len)
 {
 /*
  * This function computes scalar product of two vectors
  *Params:
- *        u, v: array of double, vectors
+ *        u, v: array of long double, vectors
  *        vec_len: int, dimension of vectors
  *Returns:
- *        res: double, scalar product
+ *        res: long double, scalar product
  */
-        double res;
+        long double res;
         int i; 
 
         res = 0;
         for(i = 0; i < vec_len; i++)
-                res+=u[i]*v[i];
+                res = res + u[i]*v[i];
         return res;
 }
 
-double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2)
+long double **matrix_product(long double **M, long double **N, int m1, int m2, int n1, int n2)
 {
 /*
  * This function computes product of two matrices
  *Params:
- *        M, N: two dimensional array of double, matrices
+ *        M, N: two dimensional array of long double, matrices
  *        m1, m2: int, number of rows and columns for M
  *        n1, n2: int, number of rows and columns for N
  *Returns:
- *        res: two dimensional array of double, matrix product
+ *        res: two dimensional array of long double, matrix product
  */
 
-        double **res;
+        long double **res;
 	int i, j, k;
 
-        res = (double **)malloc(m1*sizeof(double *));
+        res = (long double **)malloc(m1*sizeof(long double *));
         for(i = 0; i < m1; i++)
-                res[i] = (double *)malloc(n2*sizeof(double));
+                res[i] = (long double *)malloc(n2*sizeof(long double));
 
         if(m2!=n1){
                 printf("Matrix dimensions incompatible, %d != %d", m2, n1);
@@ -92,13 +92,15 @@ double **matrix_product(double **M, double **N, int m1, int m2, int n1, int n2)
 
         for(i = 0; i < m1; i++){
                 for(j = 0; j < n2; j++){
-                        res[i][j] = scalar_product(M[i], N[j], m2);
+                        res[i][j] = 0;
+                        for(k = 0; k < m2; k++)
+                                res[i][j] = res[i][j] + M[i][k]*N[k][j];
                 }
         }
         return res;
 }
 
-double **pseudo_inv(double **M, int m1, int m2)
+long double **pseudo_inv(long double **M, int m1, int m2)
 {
 /*
  * This function computes pseudoinverse of a matrix
@@ -106,7 +108,7 @@ double **pseudo_inv(double **M, int m1, int m2)
  *        M: matrix
  *        m1, m2: row and column numbers of M
  */
-        double **res, **MT;
+        long double **res, **MT;
         MT = transpose(M, m1, m2);
         res = matrix_product(MT, M, m2, m1, m1, m2);
         res = invert(res, m2);
@@ -115,7 +117,7 @@ double **pseudo_inv(double **M, int m1, int m2)
         return(res);
 }
 
-double **invert(double **M, int n)
+long double **invert(long double **mat, int n)
 {
 /*
  * This function inverts matrix
@@ -124,14 +126,18 @@ double **invert(double **M, int n)
  *        m: dimensionality
  */
         int i, j, k, ind_row;
-        double temp;
-        double **res;
+        long double temp;
+        long double **res, **M;
 
-        res = (double **)malloc(n*sizeof(double *));
+        res = (long double **)malloc(n*sizeof(long double *));
+        M = (long double **)malloc(n*sizeof(long double *));
         for(i = 0; i < n; i++){
-                res[i] = (double *)malloc(n*sizeof(double));
-                for(j = 0; j < n; j++)
+                res[i] = (long double *)malloc(n*sizeof(long double));
+                M[i] = (long double *)malloc(n*sizeof(long double));
+                for(j = 0; j < n; j++){
                         res[i][j] = 0;
+                        M[i][j] = mat[i][j];
+                }
         }
         for(i = 0; i < n; i++)
                 res[i][i] = 1;
@@ -163,8 +169,8 @@ double **invert(double **M, int n)
                         }
                 }
         }
-        for(i = n-1; i > 0; i--){
-                for(j = i-1; j > 0; j--){
+        for(i = n-1; i >= 0; i--){
+                for(j = i-1; j >= 0; j--){
                         temp = -M[j][i]/M[i][i];
                         for(k = i; k > j-1; k--){
                                 M[j][k] = M[j][k] + temp*M[i][k];
@@ -182,7 +188,7 @@ double **invert(double **M, int n)
 return res;
 } 
 
-double **transpose(double **M, int m1, int m2)
+long double **transpose(long double **M, int m1, int m2)
 {
 /*
  * This function transposes matrix
@@ -191,12 +197,12 @@ double **transpose(double **M, int m1, int m2)
  *        m1, m2: int, number of rows and columns for M
  */
 
-        double **res;
+        long double **res;
         int i, j;
 
-        res = (double **)malloc(m2*sizeof(double *));
+        res = (long double **)malloc(m2*sizeof(long double *));
         for(i = 0; i < m2; i++){
-                res[i] = (double *)malloc(m1*sizeof(double));
+                res[i] = (long double *)malloc(m1*sizeof(long double));
                 for(j = 0; j < m1; j++)
                         res[i][j] = M[j][i];
         }
@@ -204,77 +210,115 @@ double **transpose(double **M, int m1, int m2)
         return res;
 }
 
+long double **cholesky(long double **M, int m)
+{
+/*
+ * This function computes Cholesky decomposition of matrix M
+ *Params:
+ *        M: matrix
+ *        m: dimensionality of M
+ */
 
-double primal_field(double hor_dist, double ver_dist)
+        long double **res;
+        long double temp;
+        int i, j, k;
+        
+        res = (long double **)malloc(m*sizeof(long double *));
+        for(i = 0; i < m; i++){
+                res[i] = (long double *)malloc(m*sizeof(long double));
+                for(j = 0; j < m; j++)
+                        res[i][j] = 0;
+        }
+        for(i = 0; i < m; i++){
+                temp = 0;
+                for(j = 0; j < i; j++) 
+                        temp+=res[i][j]*res[i][j];
+                res[i][i] = sqrt(M[i][i] - temp);
+                for(j = i+1; j < m; j++){
+                        temp = 0;
+                        for(k = 0; k < i; k++){
+                               temp+=res[j][k]*res[i][k];
+                        }
+                        res[j][i] = 1/res[i][i]*(M[j][i] - temp);
+                }
+        }
+        return res;
+}
+
+
+
+long double primal_field(long double hor_dist, long double ver_dist)
 {
 /*
  * This function computes primal field amplitude induced by emitter in receiver
  *Params:
- *        hor_dist: double, horizontal distance between E and R
- *        ver_dist: double, vertical distance between E and R
+ *        hor_dist: long double, horizontal distance between E and R
+ *        ver_dist: long double, vertical distance between E and R
  *Returns:
- *        res: double, primal field amplitude
+ *        res: long double, primal field amplitude
  */
 
-        double k, M, MR, res;
-        double Hp[3];
-        double R[3] = {hor_dist, 0, ver_dist};
+        long double k, M, MR, res;
+        long double Hp[3];
+        long double R[3] = {hor_dist, 0, ver_dist};
        
         MR = scalar_product(R, R, 3);
-        k = M / MR / sqrt(MR) / 4 / M_PI;
+        k = 1 / MR / sqrt(MR) / 4 / M_PI;
         Hp[0] = (3*R[0]*R[2] / MR)*k;
         Hp[1] = (3*R[1]*R[2] / MR)*k;
         Hp[2] = (3*R[2]*R[2] / MR - 1)*k;
         
-        res = sqrt(scalar_product(Hp, Hp, 3));
+        res = Hp[0]*Hp[0] + Hp[1]*Hp[1] + Hp[2]*Hp[2];
+
+        res = sqrt(res);
         return res;
 }
 
-double complex integral(double complex (*f)(double, double*), double *f_pars, 
-                        int par_num, double t0, double t1, double delta)
+long double complex integral(long double complex (*f)(long double, long double*), long double *f_pars, 
+                        int par_num, long double t0, long double t1, long double delta)
 {
 /*
  * This function integrates function f from t0 to t1 with step delta
  *Params:
  *        *f: pointer to function
- *        f_pars: array of double, fixed parameters of f
- *        t0, t1: double, integration limits
- *        delta: double, discretization parameter
+ *        f_pars: array of long double, fixed parameters of f
+ *        t0, t1: long double, integration limits
+ *        delta: long double, discretization parameter
  */
 
-        double complex result;
-        double step;
+        long double complex result;
+        long double step;
 
         result = 0;
         step = t0;
 
         while (step<t1){
-                result+=f(step, f_pars)*delta;
+                result = result + f(step, f_pars)*delta;
                 step+=delta;
         } 
 
         return result;
 }
 
-double **jacobian(double *(*f)(double*, double*), double *f_pars, double *point,
-                  int in_dim, int out_dim, int par_dim, double delta)
+long double **jacobian(long double* (*f)(long double*, long double*), long double *f_pars, long double *point,
+                  int in_dim, int out_dim, int par_dim, long double delta)
 {
 /*
  * This function computes jacobian of f(x, par) in point x w.r.t. dx
  *Params:
  *        *f: pointer to function
- *        f_pars: array of double, fixed parameters of f
+ *        f_pars: array of long double, fixed parameters of f
  *        *_dim: int, dimension of x, f(x), and parameters
- *        point: array of double, x
- *        delta: double, discretization parameter
+ *        point: array of long double, x
+ *        delta: long double, discretization parameter
  */
         int i, j;
-        double *val, *val_shifted;
-        double **jac;
+        long double *val, *val_shifted;
+        long double **jac;
 
-        jac = (double **)malloc(out_dim*sizeof(double *));
+        jac = (long double **)malloc(out_dim*sizeof(long double *));
         for(i = 0; i < out_dim; i++)
-                jac[i] = (double *)malloc(in_dim*sizeof(double));
+                jac[i] = (long double *)malloc(in_dim*sizeof(long double));
         
         val = f(point, f_pars);
         for(i = 0; i < in_dim; i++){
@@ -287,7 +331,7 @@ double **jacobian(double *(*f)(double*, double*), double *f_pars, double *point,
         return jac;
 }
 
-double discrepancy(double *diff, double **R, int dim)
+long double discrepancy(long double *diff, long double **R, int dim)
 {
 /*
  * This function computes weighted MSE used as discrepancy measure
@@ -296,7 +340,7 @@ double discrepancy(double *diff, double **R, int dim)
  *        R: covariance matrix
  *        dim: dimensionality of vector
  */
-        double res;
+        long double res;
         int i;
         res = 0;
     

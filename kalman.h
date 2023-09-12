@@ -1,18 +1,29 @@
 #ifndef __KALMAN_H_INCLUDED__
 #define __KALMAN_H_INCLUDED__
 
-double *kalman_step(double *data, double *observed, double *x0,
-                int data_dim, int obs_dim, int x_dim, 
-                double *forward_fun(double*, double*),
-                double **P0, double **Q, double **R,
-                double *lower_bounds, double *upper_bounds,
-                int num_iters, double stop_val
+long double *kalman_sequential(long double *data, long double *observed,
+                long double *x0,
+                int data_dim, int obs_dim, int x_dim,
+                long double* (*forward_fun)(long double*, long double*),
+                long double **P0, long double **Q, long double **R,
+                long double *lower_bounds, long double *upper_bounds,
+                int num_iters, long double stop_val
                 );
 
-double **kalman_gain(double **P, double **H, double **R, 
+
+long double *kalman_step(long double *data, long double *observed, 
+                long double *x0,
+                int data_dim, int obs_dim, int x_dim, 
+                long double* (*forward_fun)(long double*, long double*),
+                long double **P0, long double **Q, long double **R,
+                long double *lower_bounds, long double *upper_bounds,
+                int num_iters, long double stop_val
+                );
+
+long double **kalman_gain(long double **P, long double **H, long double **R, 
                      int data_dim, int x_dim);
 
-double **update_cov(double **P0, double **K, double **H, 
+long double **update_cov(long double **P0, long double **K, long double **H, 
                     int data_dim, int x_dim);
 
 #endif
