@@ -75,7 +75,7 @@ long double complex spec_dens(long double t, long double *pars)
  *        pars: parameters of fourier potential
  */
         int i, lay_num;
-        long double r, omega, ver_dist;
+        long double r, omega, ver_dist, bf;
         long double complex res;
         long double *rho_arr, *depth_arr;
         r = pars[0];
@@ -88,13 +88,23 @@ long double complex spec_dens(long double t, long double *pars)
                 rho_arr[i] = pars[4 + i];
         for(i = 1; i < lay_num; i++)
                 depth_arr[i-1] = pars[3 + lay_num + i];
+
+	bf = bessel_function(t*r);
+	bf*=t;
+	bf*=t;
       
-        res = bessel_function(t*r)*t*t*u(t, omega,
-                               ver_dist, rho_arr,
-                               depth_arr, lay_num);
-//        printf("n0 = %f, sp_dens = %f + %fj \n", t, creal(res)*1.E10,
-//               cimag(res)*1.E10);
-//        printf("n0 = %f, bf = %f\n", t, bessel_function(t*r));
+        res = u(t, omega, ver_dist, rho_arr, depth_arr, lay_num);
+
+        if(isnan(creal(res)))
+		res = 0 + 0*I;
+
+	res*=bf;
+	//printf("%Lf", cimag(u(0.1, 1000, 100, rho_arr, depth_arr, lay_num)*1.E50 + 1*I));
+	//res = cimag(csqrt(-1));
+	//printf("%Lf", res);
+        //printf("n0 = %f, sp_dens = %Lf + %Lfj \n", t, creal(res)*1.E10,
+        //       cimag(res)*1.E10);
+        //printf("n0 = %f, bf = %Lf\n", t, bessel_function(t*r));
 
         free(rho_arr);
         free(depth_arr);
@@ -130,7 +140,7 @@ long double complex H(long double omega, long double ver_dist, long double hor_d
 
         j = 0;
         for(i = 1; i < lay_num; i++){
-                if(fabs(rho_reduced[j] - rho_arr[i]) < 0.01){
+                if(fabs(rho_reduced[j] - rho_arr[i]) < 0.1){
                         if(i < lay_num - 1)
                                 depth_reduced[j]+=depth_arr[i];
                 } else {
@@ -157,8 +167,10 @@ long double complex H(long double omega, long double ver_dist, long double hor_d
         //                      0, 1, 0.001);
         int_result = 0;
 
-        for(n0 = 0.001; n0 < 1; n0+=0.001){
+        for(n0 = 0.001; n0 < 0.9; n0+=0.001){
+		//printf("n0 = %Lf,    ", n0);
                 a = spec_dens(n0, pars);
+                //printf("a = %Lf \n", a);
                 //printf("n0 = %f, %f, %f\n", n0, creal(a)*1.E10, cimag(a)*1.E10);
                 int_result+=a*0.001;
         }
@@ -243,6 +255,48 @@ long double *forward_fun_wrapper(long double *x, long double *pars)
         
         result = forward_fun_fixed_net(freq_arr, freq_num, ver_dist, hor_dist,
                                      rho_arr, lay_num, first_thick, step);
+        free(freq_arr);
+        free(rho_arr);
+
+        return result;
+}
+
+long double *forward_fun_inphase_diff(long double *x, long double *pars)
+{
+/*
+ * This function computes the response for the case
+ * when only DIFFERENCE between consecutive in-phase components
+ * is available
+ *Params:
+ *        x: vector of log(resistivity)
+ *        pars: frequencies and other known parameters
+ */
+        int freq_num, lay_num, i;
+        long double ver_dist, hor_dist, first_thick, step;
+        long double *freq_arr, *rho_arr, *result;
+
+        freq_num = pars[0];
+        lay_num = pars[1];
+
+        ver_dist = pars[2];
+        hor_dist = pars[3];
+        first_thick = pars[4];
+        step = pars[5];
+
+        freq_arr = (long double *)malloc(freq_num*sizeof(long double));
+        rho_arr = (long double *)malloc(lay_num*sizeof(long double));
+
+        for(i = 0; i < freq_num; i++)
+                freq_arr[i] = pars[6 + i];
+        for(i = 0; i < lay_num; i++)
+                rho_arr[i] = exp(x[i]);
+        
+        result = forward_fun_fixed_net(freq_arr, freq_num, ver_dist, hor_dist,
+                                     rho_arr, lay_num, first_thick, step);
+
+	for(i = freq_num - 1; i > 0; i--){
+                result[i] -= result[i-1];
+	}
         free(freq_arr);
         free(rho_arr);
 

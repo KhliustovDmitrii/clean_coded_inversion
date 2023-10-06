@@ -70,14 +70,23 @@ long double *kalman_sequential(long double *data, long double *observed,
         
         while(j<num_iters&&s>stop_val){
                 H = jacobian(forward_fun, observed, x, x_dim,
-                             data_dim, obs_dim, 0.001);
+                             data_dim, obs_dim, 0.01);
 
                 for(i = 0; i < data_dim; i++){
                         mod_val = forward_fun(x, observed);
-
-                       for(k = 0; k < data_dim; k++)
+                        /*
+                        printf("x\n");
+                        for(k = 0; k < x_dim; k++)
+				printf("%Lf ", x[k]);
+			printf("\n");
+                        */
+                        //printf("mod val\n");
+                        for(k = 0; k < data_dim; k++){
                                 diff[k] = data[k] - mod_val[k];
-
+                        //        printf("%Lf ", mod_val[k]);
+			}
+		//	printf("\n");
+            
                         for(k = 0; k < x_dim; k++){
                                 phi[k] = 0;
                                 for(t = 0; t < x_dim; t++)
@@ -116,6 +125,17 @@ long double *kalman_sequential(long double *data, long double *observed,
                         x[i] = min(x[i], upper_bounds[i]);
                         x[i] = max(x[i], lower_bounds[i]);
                 }
+
+
+		t = 0;
+		for(i = 0; i < x_dim; i++){
+                        if(x[i]>upper_bounds[i] - 0.1||x[i]<lower_bounds[i] + 0.1)
+				t++;
+		}
+		if(t > x_dim*0.1){
+                        for(i = 0; i < x_dim; i++)
+				x[i] = 0.5*x[i] + 0.5*x0[i];
+		}
 
                 s = discrepancy(diff, R, data_dim);
                 j++;

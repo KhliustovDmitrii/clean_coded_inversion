@@ -21,7 +21,8 @@ int data_inversion(char *input_file, char *output_file, long double *args)
         long double **P0, **Q, **R;
         char buf[2000];
         long double first_thick, step, temp, hor_dist, alt_T, alt_B;
-        int freq_num, lay_num, i, j, k, pos; 
+        int freq_num, lay_num, i, j, k, pos;
+        int resp_start, resp_fin, hd_pos, altt_pos, altb_pos;	
         size_t n = 0;
         long double *values;
 
@@ -35,6 +36,11 @@ int data_inversion(char *input_file, char *output_file, long double *args)
         lay_num = (int)(args[1] + 0.1);
         first_thick = args[2];
         step = args[3];
+	resp_start = (int)(args[4] + 0.1);
+	resp_fin = (int)(args[5] + 0.1);
+	hd_pos = (int)(args[6] + 0.1);
+	altt_pos = (int)(args[7] + 0.1);
+	altb_pos = (int)(args[8] + 0.1);
 
         freq_arr = (long double *)malloc(freq_num*sizeof(long double));
         lower_bounds = (long double *)malloc(lay_num*sizeof(long double));
@@ -45,38 +51,38 @@ int data_inversion(char *input_file, char *output_file, long double *args)
         Q = (long double **)malloc(lay_num*sizeof(long double *));
         R = (long double **)malloc(2*freq_num*sizeof(long double *));
         data = (long double *)malloc(2*freq_num*sizeof(long double));
-        values = (long double *)malloc((3 + 2*freq_num)*sizeof(long double));
+        values = (long double *)malloc((3 + 2*freq_num + 100)*sizeof(long double));
         
         for(i = 0; i < freq_num; i++)
-                freq_arr[i] = args[4 + i];
+                freq_arr[i] = args[9 + i];
         for(i = 0; i < lay_num; i++){
                 lower_bounds[i] = log(0.1);
                 upper_bounds[i] = log(5000.);
         }
 
         for(i = 0; i < lay_num; i++){
-                x0[i] = log(args[3*freq_num + 4]);
+                x0[i] = log(args[3*freq_num + 9]);
                 P0[i] = (long double *)malloc(lay_num*sizeof(long double));
                 Q[i] = (long double *)malloc(lay_num*sizeof(long double));
                 for(j = 0; j < lay_num; j++){
                         if(i==j){
-                               P0[i][j] = args[3*freq_num + 5];
+                               P0[i][j] = args[3*freq_num + 10];
                         } else{
                                P0[i][j] = 0.;
                         }
                         Q[i][j] = 0.;
                 }
                 if(i < lay_num - 1)
-                        P0[i][i+1] = args[3*freq_num + 6];
+                        P0[i][i+1] = args[3*freq_num + 11];
                 if(i > 0)
-                        P0[i][i-1] = args[3*freq_num + 6];
+                        P0[i][i-1] = args[3*freq_num + 11];
         }
 
          for(i = 0; i < 2*freq_num; i++){
                 R[i] = (long double *)malloc(2*freq_num*sizeof(long double));
                 for(j = 0; j < 2*freq_num; j++){
                         if(i==j){
-                               R[i][j] = args[4+freq_num+i];
+                               R[i][j] = args[9+freq_num+i];
                         } else{
                                R[i][j] = 0.;
                         }
@@ -113,15 +119,15 @@ int data_inversion(char *input_file, char *output_file, long double *args)
                         fgets(buf,2000,fin);
                         char *p = buf;
                         n = 0;
-                        for(pos = 0; n < 3 + 2*freq_num &&
+                        for(pos = 0; n < 3 + 2*freq_num + 100&&
                         sscanf(p, "%Lf%n", values + n, &pos)==1; p+=pos){
                                 ++n;
                         }
-                        hor_dist+=values[0];
-                        alt_T+=values[1];
-                        alt_B+=values[2];
-                        for(j = 0; j < 2*freq_num; j++){
-                                data[j]+=values[3+j];
+                        hor_dist+=values[hd_pos];
+                        alt_T+=values[altt_pos];
+                        alt_B+=values[altb_pos];
+                        for(j = resp_start; j < resp_fin + 1; j++){
+                                data[j-resp_start]+=values[j];
                         }
                 }
                 hor_dist/=4;
@@ -137,9 +143,9 @@ int data_inversion(char *input_file, char *output_file, long double *args)
                 observed[4] = first_thick;
                 observed[5] = step;
                 for(j = 0; j < freq_num; j++)
-                        observed[6+j] = args[4+j];
+                        observed[6+j] = args[9+j];
 
-                result = kalman_sequential(data, observed, x0, 2*freq_num,
+                result = kalman_step(data, observed, x0, 2*freq_num,
                              6+freq_num,
                              lay_num, forward_fun_wrapper,
                              P0, Q, R, lower_bounds, upper_bounds, 10, 1.);

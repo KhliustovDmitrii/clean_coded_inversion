@@ -346,6 +346,7 @@ long double discrepancy(long double *diff, long double **R, int dim)
     
         for(i = 0; i < dim; i++)
                 res+=(diff[i]*diff[i])/R[i][i];
-        
+
+        printf("diff = %Lf\n", res); 
         return sqrt(res);
 }
