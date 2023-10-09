@@ -7,60 +7,13 @@
 #define mu0 (M_PI*.4e-6)
 #define DELTA   .01
 
-// Number of frequencies
-// this is for modelled data:
-//#define NFREQS 26
-
-// this is for Croatia (Old Equator w/o 50Hz harm: 850 & 2700 Hz)
-//#define NFREQS 21
-
-//this is for Maar-Siene Yakutia
-#define NFREQS 15
-//#define NFREQS 23
-//#define NFREQS 17
-//#define NFREQS 10
-//#define NFREQS 22
-// Number of layers
-//#define NLAYERS 10
-//#define NPLAYERS 4
-//#define DSTEP 5
-
-//#define NLAYERS 1
-// # of free thickness upper layers:
-#define NFLAYERS 0
-// # of fixed thickness layers under the free ones:
-#define NLAYERS 25
-// # of polarized layers:
-#define NPLAYERS 0
-// 4 meters is the best value for the salt water (according to Croatian data)
-
-#define FIRST_THK 4.0
-// The same as for Aarhus Geoph
-#define DSTEP 1.10851
-//#define DSTEP 1.0
-#define MIN_RES 0.02
+#define MIN_RES 0.01
 #define MAX_RES 20000.
-
-//*********** Parameters to tune inversion *************//
-// Channel number to calculate app. res. for initial halfspace
-#define BASE_CH 2
-// Initial halfspace resistivity
 #define RES_INI 150
-#define DEP_INI 25
-// Averaging interval
 #define AVERAGE 4
-// Maximum iterations number
 #define MAX_ITER 10
-// Initial Error - RMS for ln(Resistivity)
-#define ERR_INI 0.3
-// Initial Cross Correlation - should not be greater then ERR_INI!!!
-#define COR_INI 0.1
-// Delta Altitude
 #define DA -4
-//#define DA 0
 #define STOP_VAL 1.0
-
-//#define CHARGEABILITY
 
 typedef struct {
     double coord;
@@ -70,24 +23,12 @@ typedef struct {
     double relief;
     double alt;
     double prim;
-    double w[2*NFREQS];
+    double *w;
 } geometry;
 
-double freqs[NFREQS] =
-//0  1    2   3  4   5    6    7   8    9    10   11   12   13   14   15   16   17  18   19   20   21   22(3) 23(3) 24(3)   25(4)
-//{77,231,385,540,694,848,1003,1466,1620,1774,1929,2083,2391,2546,2700,2855,3009,3163,3626,5324,6558,7484, 8101, 9645, 12679, 14004};
-//{77,231,385,540,694,848,1003,1157,1311,1466,1620,1774,2855,3627,4243,4398,5169,5324,5478,9645,9799,14737,14891,15046,15200,15354};
-//{77,231,386,540,694,849,1003,1466,1620,2083,2855,3009,3164,3781,4398,5324,5478,6096,6559,6867,7022,7639,8102,9645,9799,9954,10880,11034,11188,12423,12731,13194,14583,14738,14892,15046,15355};
-//{77,231,386,540,694,1003,1466,1620,2083,3009,3781,4398,5324,6096,6559,6867,7022,7639,8102,9799,11034,12731,15046};
-//{77,231,386,540,694,1003,1466,1620,2083,3009,3781,4398,5324,6559,8102,9799,15046};
-//{77,231,386,3164,5324,6713,8102,9799,11188,14583};
-//{77,231,385,540,694,1003,1157,1466,1620,1775,2083,2238,2701,3009,3318,3472,3627,3781,4244,6250,9799,12269};
-//{77,231.5,386,540,694.5,1003,1157,1312,1466,1620,1775,1929,2083,2238,2855,3009,3164,3318,3472,6173,13503}; // from Croatia, 21 frqs
-{77,231.5,386,540,694.5,848.77,1003,1466,1620,1775,2855,4244,5324,9799,15046}; // from Maar-Siene, 15 frqs
-//{77,231,385,540,694,848,1003,1466,1620,1774,1929,2083,2391,2546,2700,2854,3009,3163,3626,5324,6558,7484,8101,9645,12731,14120}; // for modelling!!!
 
-double upper[2*NPLAYERS+NLAYERS+2*NFLAYERS];
-double lower[2*NPLAYERS+NLAYERS+2*NFLAYERS];
+double *upper;
+double *lower;
 
 double bessj0( double x )
 /*------------------------------------------------------------*/
@@ -146,20 +87,6 @@ double complex Impedance(int n, double n0, double om, double *rho, double *dep) 
     return Imp;
 }
 
-double complex CImpedance(int n, double n0, double om, double complex *rho, double *dep) {
-    int i;
-    double complex ni,nim1;
-    double complex Imp;
-    Imp = 1;
-    nim1 = csqrt(n0*n0 - I*om*mu0/rho[n-1]);
-    for(i=n-1;i>0;i--) {
-    ni = nim1;
-    nim1 = csqrt(n0*n0 - I*om*mu0/rho[i-1]);
-    Imp = ctanh(nim1*dep[i-1]+catanh(nim1/ni*Imp));
-    }
-    return Imp;
-}
-
 double complex integral(int n,double hh,double r,double *rho,double *dep,double f)
 {
     double complex PS;         // f  -  Hz!!!
@@ -182,77 +109,36 @@ double complex integral(int n,double hh,double r,double *rho,double *dep,double 
     return intl;
 }
 
-double complex Cintegral(int n,double hh,double r,double complex *rho,double *dep,double f)
-{
-    double complex PS;         // f  -  Hz!!!
-    double complex intl = 0;
-    double dn0;
-    double n0=0;//in0;
-    double complex n1,c;
-    double complex sigma = 1./rho[0];
-    double complex Imp;
-    double om = f*2*M_PI;
-    c = I*(-om*sigma*mu0);        //  4pi * 1.e-7 * 2pi (Hz -> 1/sec)
-
-    #define VAL .001
-    for(n0=VAL,dn0=VAL;n0<1;n0+=dn0) {
-        n1 = csqrt(n0*n0+c);
-        Imp = CImpedance(n,n0,om,rho,dep);
-        PS  = PartSum(n0,hh,n1,r,Imp);
-        intl += dn0*PS;
-    }
-    return intl;
-}
 
 double complex ImHz(int n, double r,double z,double f,double *rho, double *dep) {
     return integral(n,z,r,rho,dep,f);
 }
 
-double complex CImHz(int n, double r,double z,double f,double complex *rho, double *dep) {
-    return Cintegral(n,z,r,rho,dep,f);
-}
 
-void fdfun(geometry geo,int nlay,int bfr,double *x,double *y) {
+void fdfun(geometry geo, int nlay, int bfr,double *x, double *y, double *freqs) {
     int i;
+    int freq_num = bfr;
     double complex refl;
-    for(i=0;i<NFREQS;i++) {
+    for(i=0;i<freq_num;i++) {
         refl = ImHz(nlay,geo.hor_dist,2*geo.alt+geo.ver_dist,freqs[i],x,&(x[nlay]))*I/geo.prim ;
         y[2*i] = creal(refl);
         y[2*i+1] = cimag(refl);
         if(i>bfr) break;
     }
-    if(1) {//bfr==NFREQS) {
         for(i=0;i<bfr;i++) {
-            if(i<NFREQS-1)
+            if(i<freq_num-1)
                 y[2*i+1] = y[2*(i+1)+1] - y[2*i+1];
             else
                 y[2*i+1] = y[2*(i-1)+1];
         }
-    }
 }
 
-void Cfdfun(geometry geo,int nlay,int bfr,double *dep,double *x,double *y) {
-    int i,j;
-    double complex refl;
-    double complex xx[NLAYERS+NFLAYERS];
-    for(i=0;i<NFREQS;i++) {
-//        for(j=0;j<NLAYERS+NFLAYERS;j++) xx[j] = x[j]+I*x[NLAYERS+NFLAYERS+j]/freqs[i]/2/M_PI;
-        for(j=0;j<NLAYERS+NFLAYERS;j++)
-            // version 1: RealFrequencyIndependent and ComplexFrequencyDependent resistivities in series (Mine)
-            xx[j] = x[j]+((j<NPLAYERS)?(x[NLAYERS+NFLAYERS+j]/(1-I*freqs[i]*2*M_PI*x[NLAYERS+NFLAYERS+NPLAYERS+j])):(0));
-            //-------------------------------------------------------------------------------------------
-            // version 2: Cole-Cole from Andrea's (inverted sign for i*w) - resistivities in
-            // xx[j] = x[j]-((j<NPLAYERS)?(x[NLAYERS+NFLAYERS+j]*(1.-1./(1-I*freqs[i]*2*M_PI*x[NLAYERS+NFLAYERS+NPLAYERS+j]))):(0));
-        refl = CImHz(nlay,geo.hor_dist,2*geo.alt+geo.ver_dist,freqs[i],xx,dep)*I/geo.prim ;
-        y[2*i] = creal(refl);
-        y[2*i+1] = cimag(refl);
-    }
-}
 
 // FK 1 step
-void proc(int n,double *x,double *S,double z,double *h,double sg2) {// Square Root Matrix method for LSM(Kalman)
+void proc(int n, int nlay, double *x, double *S, double z, double *h, double sg2) {
+// Square Root Matrix method for LSM(Kalman)
     int i,j,k;
-    double f[2*NPLAYERS+NLAYERS+2*NFLAYERS],e[2*NPLAYERS+NLAYERS+2*NFLAYERS],d[2],bk,ck,dz;
+    double f[nlay],e[nlay],d[2],bk,ck,dz;
     d[0] = sg2;
     for(i=0;i<n;i++) {
         f[i] = 0;
@@ -288,37 +174,27 @@ int flinversion(geometry geo,
                 double *y_mes,
                 double *residual,
                 int *up,
-                double *S) {// both x_ and y_ are in log-axes
+                double *S,
+		double *freqs) {// both x_ and y_ are in log-axes
 
-    double y1[2*NFREQS];
-    double dx[2*NPLAYERS+2*NLAYERS+2*NFLAYERS],x0[2*NPLAYERS+2*NLAYERS+2*NFLAYERS],x1[2*NPLAYERS+2*NLAYERS+2*NFLAYERS],xini[2*NPLAYERS+2*NLAYERS+2*NFLAYERS];
+    int lay_num = nlay;
+    int freq_num = bfr;
+    double y1[2*freq_num];
+    double dx[2*lay_num],x0[2*lay_num],x1[2*lay_num],xini[2*lay_num];
     int charge = 1;
 
 
-#ifdef CHARGEABILITY
-//    double Jacob[2*NFREQS][2*NLAYERS+2*NFLAYERS];
-//    charge =2;
-    double Jacob[2*NFREQS][2*NPLAYERS+NLAYERS+2*NFLAYERS];
-    charge =2;
-#else
-    double Jacob[2*NFREQS][NLAYERS+2*NFLAYERS];
-#endif
+    double Jacob[2*freq_num][lay_num];
     double res = 0;
     int i,j;
 
     memset(dx,0,sizeof(dx));
     memset(Jacob, 0,sizeof(Jacob));
-#ifdef CHARGEABILITY
-    for(i=0;i<charge*NPLAYERS+nlay;i++) { // we can use chargeability for fixed layers only
-        xini[i] = x_ini[i]; // first nlay items are resistivities (real), the rest are "impedivities" (imaginary)
-    }
-#else
-    for(i=0;i<nlay+NFLAYERS;i++) {
+    for(i=0;i<nlay;i++) {
         xini[i] = x_ini[i];
         if(i<nlay-1)
-            xini[i+nlay+NFLAYERS] = x0[i+nlay+NFLAYERS] = x1[i+nlay+NFLAYERS] = dpth[i];
+            xini[i+nlay] = x0[i+nlay] = x1[i+nlay] = dpth[i];
     }
-#endif
 
     // against nans!!
     for(i=0;i<2*bfr;i++)
@@ -326,11 +202,7 @@ int flinversion(geometry geo,
 
     // first forward calculation for the model
     if(*residual<0) {
-#ifdef CHARGEABILITY
-        Cfdfun(geo,nlay,bfr,dpth,xini,y_ini);
-#else
-        fdfun(geo,nlay,bfr,xini,y_ini);
-#endif
+        fdfun(geo,nlay, bfr,xini,y_ini, freqs);
         *residual = 0;
         for(j=0;j<2*bfr;j++) {
             double val = (y_ini[j]-y_mes[j])*(y_ini[j]-y_mes[j])*geo.w[j]*geo.w[j]/(2*bfr);
@@ -343,17 +215,13 @@ int flinversion(geometry geo,
         return 0;
 
     // Jacobian matrix calculation
-    int val = (bfr==1)?nlay:(charge*NPLAYERS+nlay+NFLAYERS);
+    int val = nlay;
     for(i=0;i<val;i++) {
         for(j=0;j<val;j++) {
             double k = 10;
             x1[j] = x_ini[j] * ( (i!=j)? 1. : (1.-k*DELTA) );
         }
-#ifdef CHARGEABILITY
-        Cfdfun(geo,nlay,bfr,dpth,x1,y1);
-#else
-        fdfun(geo,nlay,bfr,x1,y1);
-#endif
+        fdfun(geo,nlay, bfr,x1,y1, freqs);
         double div = log(x1[i]/x_ini[i]);
         for(j=0;j<2*bfr;j++) {
             Jacob[j][i] = log(fabs(y1[j]/y_ini[j]));
@@ -363,7 +231,7 @@ int flinversion(geometry geo,
 
     // Step (by step) a-la FK
     for(j=0;j<2*bfr;j++) {
-        proc(val,dx,S,log(fabs(y_ini[j]/y_mes[j])),Jacob[j],1./(geo.w[j]*y_mes[j]*geo.w[j]*y_mes[j]));
+        proc(val,nlay,dx,S,log(fabs(y_ini[j]/y_mes[j])),Jacob[j],1./(geo.w[j]*y_mes[j]*geo.w[j]*y_mes[j]));
     }
 
     for(i=0;i<val;i++) {
@@ -372,16 +240,10 @@ int flinversion(geometry geo,
         if(x0[i]>upper[i]) x0[i] = upper[i];
         if(x0[i]<lower[i]) x0[i] = lower[i];
     }
-#ifndef CHARGEABILITY
     for(i=nlay;i<2*nlay-1;i++)
         x0[i] = x1[i];
-#endif
 
-#ifdef CHARGEABILITY
-    Cfdfun(geo,nlay,bfr,dpth,x0,y_ini);
-#else
-    fdfun(geo,nlay,bfr,x0,y_ini);
-#endif
+    fdfun(geo,nlay,bfr,x0,y_ini, freqs);
     for(j=0;j<2*bfr;j++){
         double val = (y_ini[j]-y_mes[j])*(y_ini[j]-y_mes[j])*geo.w[j]*geo.w[j]/(2*bfr);
         res += val;//(val>res)?val:res;
@@ -399,11 +261,7 @@ int flinversion(geometry geo,
         }
 
         res = 0;
-#ifdef CHARGEABILITY
-        Cfdfun(geo,nlay,bfr,dpth,x0,y_ini);
-#else
-        fdfun(geo,nlay,bfr,x0,y_ini);
-#endif
+        fdfun(geo,nlay, bfr,x0,y_ini, freqs);
         for(j=0;j<2*bfr;j++){
             double val = (y_ini[j]-y_mes[j])*(y_ini[j]-y_mes[j])*geo.w[j]*geo.w[j]/(2*bfr);
             res += val;//(val>res)?val:res;
@@ -413,14 +271,9 @@ int flinversion(geometry geo,
     if(res>*residual) up[0]++;
     else up[0] = 0;
     *residual = res;
-    for(i=0;i<charge*NPLAYERS+nlay;i++)
+    for(i=0;i<nlay;i++)
         x_ini[i] = x0[i];
-    if(bfr>1) {
-        for(i=0;i<NFLAYERS;i++) {
-            dpth[i] = x0[i+charge*NPLAYERS+nlay];
-            x_ini[i+nlay] = dpth[i];
-        }
-    }
+    
     return 1;
 }
 
@@ -455,58 +308,118 @@ int main(int argc, char **argv)
         printf("inversion file_in file_out\n");
         return 0;
     }
+    FILE *conf = fopen("configuration.txt", "rt");
+    char buf[2000];
+
+    int i, freq_num, pos;
+    size_t n = 0;
+    double *values, *args, *freqs;
+
+    //Read freq num
+    fgets(buf, 2000, conf);
+    fgets(buf, 2000, conf);
+    freq_num = atoi(buf);
+    values = (double *)malloc((2*freq_num)*sizeof(double));
+    args = (double *)malloc((12 + 3*freq_num)*sizeof(double));
+    freqs = (double *)malloc(freq_num*sizeof(double));
+    args[0] = freq_num;
+
+    //Read lay_num, first_thick, step
+    fgets(buf, 2000, conf);
+    fgets(buf, 2000, conf);
+    char *p = buf;
+    for(pos = 0; n < 3 && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
+	   ++n;
+
+    n = 0;
+    args[1] = values[0];
+    args[2] = values[1];
+    args[3] = values[2];
+
+    //Read freqs
+    fgets(buf, 2000, conf);
+    fgets(buf, 2000, conf);
+    p = buf;
+    for(pos = 0; n < freq_num && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
+	   ++n;
+    for(i = 0; i < freq_num; i++)
+	   args[4+i] = values[i];
+
+    n = 0;
+
+//Read R_i_i
+    fgets(buf, 2000, conf);
+    fgets(buf, 2000, conf);
+    p = buf;
+    for(pos = 0; n < 2*freq_num && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
+	   ++n;
+
+    n = 0;
+    for(i = 0; i < 2*freq_num; i++)
+	   args[4 + freq_num + i] = values[i];
+
+//Read P0[0][0], P0[0][1]
+    fgets(buf, 2000, conf);
+    fgets(buf, 2000, conf);
+    p = buf;
+    for(pos = 0; n < 2 && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
+	   ++n;
+
+    n = 0;
+    double ERR_INI = args[4 + 2*freq_num] = values[0];
+    double COR_INI = args[5 + 2*freq_num] = values[1];
+//Read position of measurements, hor_dist, ver_dist, alt
+    fgets(buf, 2000, conf);
+    fgets(buf, 2000, conf);
+    p = buf;
+    for(pos = 0; n < 5 && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
+	   ++n;
+
+    n = 0;
+    args[6 + 2*freq_num] = values[0];
+    args[7 + 2*freq_num] = values[1];
+    args[8 + 2*freq_num] = values[2];
+    args[9 + 2*freq_num] = values[3];
+    args[10 + 2*freq_num] = values[4];
 
     geometry geo;
-    char buf[2000];
     char *data;
     //char time[23];
     //for double spaces
     char time[13];
-    double y_mes[2*NFREQS];
-    int charge = 1;
-#ifdef CHARGEABILITY
-    charge = 2;
-    double rho[charge*NPLAYERS+NLAYERS+NFLAYERS];
-    double x_ini[charge*NPLAYERS+NLAYERS+2*NFLAYERS];
-    double S_ini[(charge*NPLAYERS+NLAYERS+2*NFLAYERS)*(charge*NPLAYERS+NLAYERS+2*NFLAYERS)];
-    double S_pre[(charge*NPLAYERS+NLAYERS+2*NFLAYERS)*(charge*NPLAYERS+NLAYERS+2*NFLAYERS)];
-    double S0[(charge*NPLAYERS+NLAYERS+2*NFLAYERS)*(charge*NPLAYERS+NLAYERS+2*NFLAYERS)];
-#else
-    double rho[NLAYERS+NFLAYERS];
-    double x_ini[NLAYERS+2*NFLAYERS];
-    double S_ini[(NLAYERS+2*NFLAYERS)*(NLAYERS+2*NFLAYERS)];
-    double S_pre[(NLAYERS+2*NFLAYERS)*(NLAYERS+2*NFLAYERS)];
-    double S0[(NLAYERS+2*NFLAYERS)*(NLAYERS+2*NFLAYERS)];
-#endif
-    double y_ini[NFREQS*2];
+    double y_mes[2*freq_num];
+    int lay_num = (int)(args[1] + 0.1);
+    double rho[lay_num];
+    double x_ini[lay_num];
+    double S_ini[lay_num*lay_num];
+    double S_pre[lay_num*lay_num];
+    double S0[lay_num*lay_num];
+    double y_ini[2*freq_num];
+    int hor_dist_pos = (int)(args[8 + 2*freq_num]);
+    int ver_dist_pos = (int)(args[9 + 2*freq_num]);
+    int alt_pos = (int)(args[10 + 2*freq_num]);
+    int first_mes_pos = (int)(args[6]);		    
     int up = 0;
-    int s7 = AVERAGE, s7c = 0;
-    double mesv[NFREQS*2];
+    int s7 = 4, s7c = 0;
+    double mesv[2*freq_num];
     double alta = 0;
     double vda = 0;
-    int ft =1;
+    int ft = 1;
     int data_cntr = 0;
-    double dpth[NLAYERS+NFLAYERS],d=FIRST_THK;
-    int nlay = NLAYERS+NFLAYERS;
-    int i;
+    double dpth[lay_num],d=args[2];
+    int nlay = lay_num;
     double weight = 1000.;
-
-    for(int i=0;i<charge*NPLAYERS+NLAYERS+NFLAYERS;i++)
-        upper[i] = (i<NLAYERS+NFLAYERS+NPLAYERS) ? MAX_RES : 1.;
-    for(int i=0;i<charge*NPLAYERS+NLAYERS+NFLAYERS;i++)
-        lower[i] = (i<NLAYERS+NFLAYERS+NPLAYERS) ? MIN_RES : .000001;
-    for(int i=charge*NPLAYERS+NLAYERS+NFLAYERS;i<charge*NPLAYERS+NLAYERS+2*NFLAYERS;i++)
-        upper[i] = 100.;
-    for(int i=charge*NPLAYERS+NLAYERS+NFLAYERS;i<charge*NPLAYERS+NLAYERS+2*NFLAYERS;i++)
-        lower[i] = .1;
+    for(int i=0;i<lay_num;i++)
+        upper[i] = (i<lay_num) ? 20000 : 1.;
+    for(int i=0;i<lay_num;i++)
+        lower[i] = (i<lay_num) ? 0.1 : .000001;
 
     memset(mesv,0,sizeof(mesv));
 
     memset(time, 0, sizeof(time));
 
     // Layers thicknesses are fixed here !!!
-    for(int i=0;i<NFLAYERS;i++) dpth[i] = 10.;
-    for(int i=NFLAYERS;i<NLAYERS+NFLAYERS-1;i++,d*=DSTEP) dpth[i] = d;
+    for(int i=0;i<lay_num;i++,d*=args[3]) dpth[i] = d;
 
     data = buf + 13; // it's an offset to skip time in the string
 
@@ -521,287 +434,22 @@ int main(int argc, char **argv)
                        //6489173050;//!!!!!! For 2110:2 in Croatia!!!! // primField(29.3,27.8)/.82;
 
     memset(geo.w,0,sizeof(geo.w));
-    //21 Frequencies
-    // weghts for the measurements are 1/RMS
-    // Re
-    geo.w[1] = 1./.27;    //
-    geo.w[3] = 1./.24;    // base frequency for Re. All lower Re are fake.
-    geo.w[5] = 1./.26;
-    geo.w[7] = 1./.28;
-    geo.w[9] = 1./.3;
-    geo.w[11] = 1./.89;
-    geo.w[13] = 1./.58;
-    geo.w[15] = 1./0.47;
-    geo.w[17] = 1./.55;
-    geo.w[19] = 1./.35;
-    geo.w[21] = 1./.38;
-    geo.w[23] = 1./.91;
-    geo.w[25] = 1./.78;
-    geo.w[27] = 1./.86;
-    geo.w[29] = 1./.92;
+    //Setting R_i_i
+    
+    for(i = 0; i < 2*freq_num; i++)
+	    geo.w[i] = args[4 + freq_num + i];
 
-    for(int i=0;i<NFREQS-1;i++)
+    for(int i=0;i<freq_num-1;i++)
         geo.w[i*2+1] = sqrt(geo.w[i*2+1]*geo.w[i*2+1]+geo.w[(i+1)*2+1]*geo.w[(i+1)*2+1]);
 
-    // Im
-    geo.w[0] = 1./.21;
-    geo.w[2] = 1./.1;
-    geo.w[4] = 1./.07;
-    geo.w[6] = 1./.12;
-    geo.w[8] = 1./.35;
-    geo.w[10] = 1/.82;
-    geo.w[12] = 1./.41;
-    geo.w[14] = 1./.53;
-    geo.w[16] = 1./.28;
-    geo.w[18] = 1./.42;
-    geo.w[20] = 1./.15;
-    geo.w[22] = 1./.27;
-    geo.w[24] = 1./.82;
-    geo.w[26] = 1./.89;
-    geo.w[28] = 1./.94;
 
-     #if 0
-    //21 Frequencies
-    // weghts for the measurements are 1/RMS
-    // Re
-    geo.w[1] = 1./.27;    //
-    geo.w[3] = 1./.24;    // base frequency for Re. All lower Re are fake.
-    geo.w[5] = 1./.26;
-    geo.w[7] = 1./.28;
-    geo.w[9] = 1./.3;
-    geo.w[11] = 1./.49;
-    geo.w[13] = 1./.58;
-    geo.w[15] = 1./1.07;
-    geo.w[17] = 1./.55;
-    geo.w[19] = 1./.35;
-    geo.w[21] = 1./.38;
-    geo.w[23] = 1./.91;
-    geo.w[25] = 1./.48;
-    geo.w[27] = 1./.46;
-    geo.w[29] = 1./.52;
-    geo.w[31] = 1./.45;
-    geo.w[33] = 1./.49;
-    geo.w[35] = 1./.25;
-    geo.w[37] = 1./.65;
-    geo.w[39] = 1./.67;
-    geo.w[41] = 1./.92;
-
-    for(int i=0;i<NFREQS-1;i++)
-        geo.w[i*2+1] = sqrt(geo.w[i*2+1]*geo.w[i*2+1]+geo.w[(i+1)*2+1]*geo.w[(i+1)*2+1]);
-    geo.w[41] = 1./20.;//
-
-    // Im
-    geo.w[0] = 1./.21;
-    geo.w[2] = 1./.1;
-    geo.w[4] = 1./.07;
-    geo.w[6] = 1./.12;
-    geo.w[8] = 1./.35;
-    geo.w[10] = 1/.42;
-    geo.w[12] = 1./.41;
-    geo.w[14] = 1./.53;
-    geo.w[16] = 1./.28;
-    geo.w[18] = 1./.42;
-    geo.w[20] = 1./.15;
-    geo.w[22] = 1./.27;
-    geo.w[24] = 1./.82;
-    geo.w[26] = 1./.39;
-    geo.w[28] = 1./.44;
-    geo.w[30] = 1./.59;
-    geo.w[32] = 1./.38;
-    geo.w[34] = 1./.17;
-    geo.w[36] = 1./.44;
-    geo.w[38] = 1./.6;
-    geo.w[40] = 1./.9;
-#endif
-#if 0
-    //10 frequencies
-    // weghts for the measurements are 1/RMS
-    // Re
-    geo.w[1] = 1./2.;    //
-    geo.w[3] = 1./2.;    // base frequency for Re. All lower Re are fake.
-    geo.w[5] = 1./0.14;
-    geo.w[7] = 1./0.11;
-    geo.w[9] = 1./0.15;
-    geo.w[11] = 1./0.29;
-    geo.w[13] = 1./.24;
-    geo.w[15] = 1./.77;
-    geo.w[17] = 1./1.11;
-    geo.w[19] = 1./1.11;
-
-    //geo.w[11] = 1./0.23;
-    //geo.w[13] = 1./0.21;
-    //geo.w[15] = 1./0.49;
-    //geo.w[17] = 1./0.91;
-    //geo.w[19] = 1./0.91;
-
-    // Im
-    geo.w[0] = 1./0.09;
-    geo.w[2] = 1./0.07;
-    geo.w[4] = 1./0.07;
-    geo.w[6] = 1./0.04;
-    geo.w[8] = 1./0.09;
-    geo.w[10] = 1/0.19;
-    geo.w[12] = 1./0.16;
-    geo.w[14] = 1./0.52;
-    geo.w[16] = 1./0.72;
-    //geo.w[18] = 1./2;
-    geo.w[18] = 1./0.72;
-#endif
-#if 0
-    //17 frequencies
-    // weghts for the measurements are 1/RMS
-    // Re
-    geo.w[1] = 1./2.;    //
-    geo.w[3] = 1./2.;    // base frequency for Re. All lower Re are fake.
-    geo.w[5] = 1./0.14;
-    geo.w[7] = 1./0.14;
-    geo.w[9] = 1./0.16;
-    geo.w[11] = 1./0.19;
-    geo.w[13] = 1./0.15;
-    geo.w[15] = 1./0.14;
-    geo.w[17] = 1./0.16;
-    geo.w[19] = 1./0.11;
-    geo.w[21] = 1./0.14;
-    geo.w[23] = 1./0.16;
-    geo.w[25] = 1./0.15;
-    geo.w[27] = 1./0.23;
-    geo.w[29] = 1./0.21;
-    geo.w[31] = 1./0.49;
-    geo.w[33] = 1./0.91;
-
-    // Im
-    geo.w[0] = 1./0.09;
-    geo.w[2] = 1./0.07;
-    geo.w[4] = 1./0.07;
-    geo.w[6] = 1./0.09;
-    geo.w[8] = 1./0.13;
-    geo.w[10] = 1/0.15;
-    geo.w[12] = 1./0.06;
-    geo.w[14] = 1./0.06;
-    geo.w[16] = 1./0.09;
-    geo.w[18] = 1./0.04;
-    geo.w[20] = 1./0.12;
-    geo.w[22] = 1./0.13;
-    geo.w[24] = 1./0.09;
-    geo.w[26] = 1./0.19;
-    geo.w[28] = 1./0.16;
-    geo.w[30] = 1./0.52;
-    geo.w[32] = 1./0.72;
-#endif
-   #if 0
-    // weghts for the measurements are 1/RMS
-    // Re
-    geo.w[1] = 1./2.;    //
-    geo.w[3] = 1./2.;    // base frequency for Re. All lower Re are fake.
-    geo.w[5] = 1./0.14;
-    geo.w[7] = 1./0.14;
-    geo.w[9] = 1./0.16;
-    geo.w[11] = 1./0.19;
-    geo.w[13] = 1./0.15;
-    geo.w[15] = 1./0.14;
-    geo.w[17] = 1./0.16;
-    geo.w[19] = 1./0.11;
-    geo.w[21] = 1./0.14;
-    geo.w[23] = 1./0.16;
-    geo.w[25] = 1./0.15;
-    geo.w[27] = 1./0.26;
-    geo.w[29] = 1./0.23;
-    geo.w[31] = 1./0.28;
-    geo.w[33] = 1./0.29;
-    geo.w[35] = 1./0.32;
-    geo.w[37] = 1./0.21;
-    geo.w[39] = 1./0.49;
-    geo.w[41] = 1./0.56;
-    geo.w[43] = 1./0.46;
-    geo.w[45] = 1./0.91;
-
-    // Im
-    geo.w[0] = 1./0.09;
-    geo.w[2] = 1./0.07;
-    geo.w[4] = 1./0.07;
-    geo.w[6] = 1./0.09;
-    geo.w[8] = 1./0.13;
-    geo.w[10] = 1/0.15;
-    geo.w[12] = 1./0.06;
-    geo.w[14] = 1./0.06;
-    geo.w[16] = 1./0.09;
-    geo.w[18] = 1./0.04;
-    geo.w[20] = 1./0.12;
-    geo.w[22] = 1./0.13;
-    geo.w[24] = 1./0.09;
-    geo.w[26] = 1./0.24;
-    geo.w[28] = 1./0.19;
-    geo.w[30] = 1./0.25;
-    geo.w[32] = 1./0.26;
-    geo.w[34] = 1./0.27;
-    geo.w[36] = 1./0.16;
-    geo.w[38] = 1./0.52;
-    geo.w[40] = 1./0.45;
-    geo.w[42] = 1./0.37;
-    geo.w[44] = 1./0.72;
-#endif
-#if 0
-    geo.w[1] = 1./2.;    //
-    geo.w[3] = 1./2.;    // base frequency for Re. All lower Re are fake.
-    geo.w[5] = 1./0.10;
-    geo.w[7] = 1./0.09;
-    geo.w[9] = 1./0.11;
-    geo.w[11] = 1./5.10; // 50Hz Noises
-    geo.w[13] = 1./0.15;
-    geo.w[15] = 1./0.10;
-    geo.w[17] = 1./0.09;
-    geo.w[19] = 1./0.12;
-    geo.w[21] = 1./0.10;
-    geo.w[23] = 1./0.10;
-    geo.w[25] = 1./0.10;
-    geo.w[27] = 1./0.12;
-    geo.w[29] = 1./0.09;
-    geo.w[31] = 1./0.08;
-    geo.w[33] = 1./0.08;
-    geo.w[35] = 1./0.09;
-    geo.w[37] = 1./0.23;
-    geo.w[39] = 1./0.10;
-    geo.w[41] = 1./0.17;
-    geo.w[43] = 1./0.20;
-    geo.w[45] = 1./0.17;
-    geo.w[47] = 1./0.44;
-    geo.w[49] = 1./0.31;
-    geo.w[51] = 1./0.35;
-    // Im
-    geo.w[0] = 1./0.10;
-    geo.w[2] = 1./0.05;
-    geo.w[4] = 1./0.05;
-    geo.w[6] = 1./0.08;
-    geo.w[8] = 1./0.08;
-    geo.w[10] = 1./5.09; // 50 Hz
-    geo.w[12] = 1./0.12;
-    geo.w[14] = 1./0.05;
-    geo.w[16] = 1./0.05;
-    geo.w[18] = 1./0.08;
-    geo.w[20] = 1./0.07;
-    geo.w[22] = 1./0.06;
-    geo.w[24] = 1./0.08;
-    geo.w[26] = 1./0.09;
-    geo.w[28] = 1./0.05;
-    geo.w[30] = 1./0.06;
-    geo.w[32] = 1./0.07;
-    geo.w[34] = 1./0.07;
-    geo.w[36] = 1./0.25;
-    geo.w[38] = 1./0.09;
-    geo.w[40] = 1./0.16;
-    geo.w[42] = 1./0.17;
-    geo.w[44] = 1./0.14;
-    geo.w[46] = 1./0.31;
-    geo.w[48] = 1./0.23;
-    geo.w[50] = 1./0.20;
-#endif
-    for(int lr = 0;lr<charge*NPLAYERS+NLAYERS+NFLAYERS;lr++)
-        rho[lr] = (lr<NPLAYERS+NLAYERS+NFLAYERS)?RES_INI:.0001;
+    for(int lr = 0;lr<lay_num;lr++)
+        rho[lr] = (lr<lay_num)?RES_INI:.0001;
 
     memset(x_ini,0,sizeof(x_ini));
     memset(S_ini,0,sizeof(S_ini));
     memset(buf,0,sizeof(buf));
-    for(int i=0;i<charge*NPLAYERS+NLAYERS+NFLAYERS;i++)
+    for(int i=0;i<lay_num;i++)
         x_ini[i] = rho[i];
 
     for(i=0;fgets(buf,2000,fin);i++) {
@@ -813,8 +461,8 @@ int main(int argc, char **argv)
         if(buf[0]=='L' || buf[0]=='B' || buf[0]=='T') { // reading Lines or Base or Trends
             fputs(buf,fout);
             printf("%s",buf);
-            for(int lr = 0;lr<charge*NPLAYERS+NLAYERS+NFLAYERS;lr++)
-                rho[lr] = (lr<NPLAYERS+NLAYERS+NFLAYERS)?RES_INI:.0001;
+            for(int lr = 0;lr<lay_num;lr++)
+                rho[lr] = (lr<lay_num)?RES_INI:.0001;
             memset(buf,0,sizeof(buf));
             ft = 1;
             continue;
@@ -827,173 +475,19 @@ int main(int argc, char **argv)
             continue;
         }
 
-#if 0
-	// Reading data file after Time
-        //           x   y   alt hd  vd  re0 re1 re2 re3 re4 re5 re6 re7
-        //           re8 re9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20
-        //           r21 r22 r23 r24 r25 im0 im1 im2 im3 im4 im5 im6 im7
-        //           im8 im9 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 i20
-        //           i21 i22 i23 i24 i25
-        sscanf(data,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf",
-               &geo.coord,&geo.coord_y,&geo.alt,&geo.hor_dist,&geo.ver_dist,
-               &y_mes[1],                &y_mes[3],                &y_mes[5],
-               &y_mes[7],                &y_mes[9],                &y_mes[11],
-               &y_mes[13],               &y_mes[15],               &y_mes[17],
-               &y_mes[19],               &y_mes[21],               &y_mes[23],
-               &y_mes[25],               &y_mes[27],               &y_mes[29],
-               &y_mes[31],               &y_mes[33],               &y_mes[35],
-               &y_mes[37],               &y_mes[39],               &y_mes[41],
-               &y_mes[43],               &y_mes[45],               &y_mes[47],
-               &y_mes[49],               &y_mes[51],
-               &y_mes[0],                &y_mes[2],                &y_mes[4],
-               &y_mes[6],                &y_mes[8],                &y_mes[10],
-               &y_mes[12],               &y_mes[14],               &y_mes[16],
-               &y_mes[18],               &y_mes[20],               &y_mes[22],
-               &y_mes[24],               &y_mes[26],               &y_mes[28],
-               &y_mes[30],               &y_mes[32],               &y_mes[34],
-               &y_mes[36],               &y_mes[38],               &y_mes[40],
-               &y_mes[42],               &y_mes[44],               &y_mes[46],
-               &y_mes[48],               &y_mes[50]
-               );
-        // Reading data file after Time
-            //           x   y   alt hd  vd  re0 re1 re2 re3 re4 re5 re6 re7
-            //           re8 re9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20
-            //           r21 r22 im0 im1 im2 im3 im4 im5 im6 im7
-            //           im8 im9 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 i20
-            //           i21 i22
-        sscanf(data,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf",
-               &geo.coord,&geo.coord_y,&geo.alt,&geo.hor_dist,&geo.ver_dist,
-               &y_mes[1],                &y_mes[3],                &y_mes[5],
-               &y_mes[7],                &y_mes[9],                &y_mes[11],
-               &y_mes[13],               &y_mes[15],               &y_mes[17],
-               &y_mes[19],               &y_mes[21],               &y_mes[23],
-               &y_mes[25],               &y_mes[27],               &y_mes[29],
-               &y_mes[31],               &y_mes[33],               &y_mes[35],
-               &y_mes[37],               &y_mes[39],               &y_mes[41],
-               &y_mes[43],               &y_mes[45],
-               &y_mes[0],                &y_mes[2],                &y_mes[4],
-               &y_mes[6],                &y_mes[8],                &y_mes[10],
-               &y_mes[12],               &y_mes[14],               &y_mes[16],
-               &y_mes[18],               &y_mes[20],               &y_mes[22],
-               &y_mes[24],               &y_mes[26],               &y_mes[28],
-               &y_mes[30],               &y_mes[32],               &y_mes[34],
-               &y_mes[36],               &y_mes[38],               &y_mes[40],
-               &y_mes[42],               &y_mes[44]
-               );
-        memset(buf,0,sizeof(buf));
-#endif
-#if 0
-        //for 17 frequencies
-        // Reading data file after Time
-            //           x   y   alt hd  vd
-            //           re0 re1 re2 re3 re4 re5 re6 re7
-            //           re8 re9 r10 r11 r12 r13 r14 r15 r16
-            //           im0 im1 im2 im3 im4 im5 im6 im7
-            //           im8 im9 i10 i11 i12 i13 i14 i15 i16
-        sscanf(data,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf",
-               &geo.coord,&geo.coord_y,&geo.alt,&geo.hor_dist,&geo.ver_dist,
-               &y_mes[1],                &y_mes[3],                &y_mes[5],
-               &y_mes[7],                &y_mes[9],                &y_mes[11],
-               &y_mes[13],               &y_mes[15],               &y_mes[17],
-               &y_mes[19],               &y_mes[21],               &y_mes[23],
-               &y_mes[25],               &y_mes[27],               &y_mes[29],
-               &y_mes[31],               &y_mes[33],
-               &y_mes[0],                &y_mes[2],                &y_mes[4],
-               &y_mes[6],                &y_mes[8],                &y_mes[10],
-               &y_mes[12],               &y_mes[14],               &y_mes[16],
-               &y_mes[18],               &y_mes[20],               &y_mes[22],
-               &y_mes[24],               &y_mes[26],               &y_mes[28],
-               &y_mes[30],               &y_mes[32]
-               );
-        memset(buf,0,sizeof(buf));
-#endif
-#if 0
-        //for 10 frequencies
-        // Reading data file after Time
-            //           x   y   alt hd  vd
-            //           re0 re1 re2 re3 re4 re5 re6 re7
-            //           re8 re9
-            //           im0 im1 im2 im3 im4 im5 im6 im7
-            //           im8 im9 i10
-        sscanf(data,"%lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf ",
-               &geo.coord,&geo.coord_y,&geo.alt,&geo.hor_dist,&geo.ver_dist,
-               &y_mes[1],                &y_mes[3],                &y_mes[5],
-               &y_mes[7],                &y_mes[9],                &y_mes[11],
-               &y_mes[13],               &y_mes[15],               &y_mes[17],
-               &y_mes[19],
-               &y_mes[0],                &y_mes[2],                &y_mes[4],
-               &y_mes[6],                &y_mes[8],                &y_mes[10],
-               &y_mes[12],               &y_mes[14],               &y_mes[16],
-               &y_mes[18]
-               );
-        memset(buf,0,sizeof(buf));
-#endif
-   #if 0
-        //for 21 frequencies
-        // Reading data file after Time
-            //           hd  vd  alt re0 re1 re2 re3 re4 re5 re6 re7
-            //           re8 re9 r10 r11 r12 r13 r14 r15 r16 r17 r18 r19 r20
-            //           im0 im1 im2 im3 im4 im5 im6 im7
-            //           im8 im9 i10 i11 i12 i13 i14 i15 i16 i17 i18 i19 i20
+        char *p = data;
+	n = 0;
+	for(pos = 0;n<3+2*freq_num+100&&
+			sscanf(p, "%f%n", values + n, &pos) == 1; p+=pos)
+		++n;
+	geo.hor_dist = values[hor_dist_pos];
+	geo.ver_dist = values[ver_dist_pos];
+	geo.alt = values[alt_pos];
 
-        sscanf(data,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf",
-               &geo.hor_dist, &geo.ver_dist, &geo.alt,
-               &y_mes[1],                &y_mes[3],                &y_mes[5],
-               &y_mes[7],                &y_mes[9],                &y_mes[11],
-               &y_mes[13],               &y_mes[15],               &y_mes[17],
-               &y_mes[19],               &y_mes[21],               &y_mes[23],
-               &y_mes[25],               &y_mes[27],               &y_mes[29],
-               &y_mes[31],               &y_mes[33],               &y_mes[35],
-               &y_mes[37],               &y_mes[39],               &y_mes[41],
-               &y_mes[0],                &y_mes[2],                &y_mes[4],
-               &y_mes[6],                &y_mes[8],                &y_mes[10],
-               &y_mes[12],               &y_mes[14],               &y_mes[16],
-               &y_mes[18],               &y_mes[20],               &y_mes[22],
-               &y_mes[24],               &y_mes[26],               &y_mes[28],
-               &y_mes[30],               &y_mes[32],               &y_mes[34],
-               &y_mes[36],               &y_mes[38],               &y_mes[40]
-               );
-        memset(buf,0,sizeof(buf));
-     #endif
-        //for 15 frequencies
-        // Reading data file after Time
-            //           hd  vd  alt re0 re1 re2 re3 re4 re5 re6 re7
-            //           re8 re9 r10 r11 r12 r13 r14
-            //           im0 im1 im2 im3 im4 im5 im6 im7
-            //           im8 im9 i10 i11 i12 i13 i14
+	for(i = 0; i<2*freq_num; i++)
+		y_mes[i] = values[first_mes_pos + i];
 
-        sscanf(data,"%lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf \
-                     %lf %lf %lf %lf %lf %lf %lf %lf %lf",
-               &geo.hor_dist, &geo.ver_dist, &geo.alt,
-               &y_mes[1],                &y_mes[3],                &y_mes[5],
-               &y_mes[7],                &y_mes[9],                &y_mes[11],
-               &y_mes[13],               &y_mes[15],               &y_mes[17],
-               &y_mes[19],               &y_mes[21],               &y_mes[23],
-               &y_mes[25],               &y_mes[27],               &y_mes[29],
 
-               &y_mes[0],                &y_mes[2],                &y_mes[4],
-               &y_mes[6],                &y_mes[8],                &y_mes[10],
-               &y_mes[12],               &y_mes[14],               &y_mes[16],
-               &y_mes[18],               &y_mes[20],               &y_mes[22],
-               &y_mes[24],               &y_mes[26],               &y_mes[28]
-               );
         memset(buf,0,sizeof(buf));
         data_cntr++;
         //if(data_cntr<1400) continue;
@@ -1001,36 +495,35 @@ int main(int argc, char **argv)
         geo.alt += DA;
 
     // averaging for AVERAGE samples
-        for(int i=0;i<2*NFREQS;i++)
+        for(int i=0;i<2*freq_num;i++)
             mesv[i] += y_mes[i];
         alta += geo.alt;
         vda += geo.ver_dist;
         s7c++;
         if(--s7)
             continue;
-        for(int i=0;i<2*NFREQS;i++)
+        for(int i=0;i<2*freq_num;i++)
             y_mes[i] = mesv[i]/s7c;
         geo.alt = alta/s7c;
         geo.ver_dist = vda/s7c;
         s7c = 0;
-        s7 = AVERAGE;
+        s7 = 4;
         memset(mesv,0,sizeof(mesv));
         alta = 0;
         vda = 0;
 
 	// excluding all negatives
-        for(int i=0;i<2*NFREQS;i++)
+        for(int i=0;i<2*freq_num;i++)
            y_mes[i] = fabs(y_mes[i]);
 
     // It's a cricial point: we use differences of Inphase components instead of Inphase components!!!
-        if(1) {//NFREQS == 21) {
-            for(i=0;i<NFREQS;i++) {
-                if(i<NFREQS-1)
+            for(i=0;i<freq_num;i++) {
+                if(i<freq_num-1)
                     y_mes[2*i+1] = y_mes[2*(i+1)+1] - y_mes[2*i+1];
                 else
                     y_mes[2*i+1] = y_mes[2*(i-1)+1];
             }
-        }
+        
 
     // calculating of a half-space for the lowerest frequency!!!
     // itereative inversion for fixed layers
@@ -1040,7 +533,7 @@ int main(int argc, char **argv)
         for (itr = 0;itr < MAX_ITER; itr++) {
             double d_ini = ERR_INI;
             int up = 0;
-            flinversion(geo,1,1,&rho_ini,dpth,y_ini,y_mes,&res,&up,&d_ini);
+            flinversion(geo,1,1,&rho_ini,dpth,y_ini,y_mes,&res,&up,&d_ini, freqs);
             if(sqrt(res) <STOP_VAL) break;
             if(up) break;
         }
@@ -1055,120 +548,34 @@ int main(int argc, char **argv)
         int iter = 0;
         //double res1;
 
-#ifdef CHARGEABILITY
-        double Sr[(2*NPLAYERS+NLAYERS+2*NFLAYERS)*(2*NPLAYERS+NLAYERS+2*NFLAYERS)];
-#else
-        double Sr[(NLAYERS+2*NFLAYERS)*(NLAYERS+2*NFLAYERS)];
-#endif
+        double Sr[lay_num*lay_num];
         res = -1;
         up = 0;
 
         if(ft) { // for each new line restart KF
             memset(S_ini,0,sizeof(S_ini));
-            // thickness
-            for(int i=charge*NPLAYERS+NFLAYERS+nlay-1;i>=charge*NPLAYERS+nlay;i--) {
-                S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] = ERR_INI;
-                x_ini[i] =DEP_INI;
-            }
-            // chargeability
-            for(int i=charge*NPLAYERS+nlay-1;i>=NPLAYERS+nlay;i--) {
-                if(i==charge*NPLAYERS+nlay-1)
-                    S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] = ERR_INI;
-                else {
-                    S_ini[i+1+(charge*NPLAYERS+nlay)*i] =
-                            COR_INI*ERR_INI/S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*(i+1)];
-                    S_ini[i+(charge*NPLAYERS+nlay)*i] =
-                     sqrt(ERR_INI*ERR_INI-S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i]*
-                            S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i]);
-                }
-                x_ini[i] =.0001;
-            }
-            // ch.resistivity
-            for(int i=NPLAYERS+nlay-1;i>=nlay;i--) {
-                if(i==NPLAYERS+nlay-1)
-                    S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] = ERR_INI;
-                else {
-                    S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i] =
-                            COR_INI*ERR_INI/S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*(i+1)];
-                    S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] =
-                     sqrt(ERR_INI*ERR_INI-S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i]*
-                            S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i]);
-                }
-                x_ini[i] = rho_ini;//RES_INI;//*.5;
-            }
             // ordinary resistivity
             for(int i=nlay-1;i>=0;i--) {
                 if(i==nlay-1)
-                    S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] = ERR_INI;
+                    S_ini[i+nlay*i] = ERR_INI;
                 else {
-                    S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i] =
-                            COR_INI*ERR_INI/S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*(i+1)];
-                    S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] =
-                     sqrt(ERR_INI*ERR_INI-S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i]*
-                            S_ini[i+1+(charge*NPLAYERS+nlay+NFLAYERS)*i]);
+                    S_ini[i+1+nlay*i] =
+                            COR_INI*ERR_INI/S_ini[i+1+nlay*(i+1)];
+                    S_ini[i+nlay*i] =
+                     sqrt(ERR_INI*ERR_INI-S_ini[i+1+nlay*i]*
+                            S_ini[i+1+nlay*i]);
                 }
-                x_ini[i] = rho_ini;//RES_INI;//*.5;
-                //if(i<NFLAYERS) x_ini[i] *= .5;
+                x_ini[i] = rho_ini;
             }
 
-#if 0
-            double PP[(charge*NPLAYERS+nlay)*(charge*NPLAYERS+nlay)];
-            for(int i=0;i<(charge*NPLAYERS+nlay);i++) {
-                for (int j=0;j<(charge*NPLAYERS+nlay);j++) {
-                    PP[i*(charge*NPLAYERS+nlay)+j] = 0;
-                    for (int k=0;k<(charge*NPLAYERS+nlay);k++) {
-                        PP[i*(charge*NPLAYERS+nlay)+j]+=
-                                S_ini[i*(charge*NPLAYERS+nlay)+k]*S_ini[j*(charge*NPLAYERS+nlay)+k];
-                    }
-                    printf("%.7f ",S_ini[i*(charge*NPLAYERS+nlay)+j]);
-                }
-                printf("    %f\n",x_ini[i]);
-            }
-#endif
-
-
-#if 0
-            for(int i=charge*nlay-1;i>=0;i--) {
-                if(i==charge*nlay-1)
-                    S_ini[i+charge*nlay*i] = ERR_INI;
-                else {
-                    S_ini[i+1+charge*nlay*i] = COR_INI*ERR_INI/S_ini[i+1+charge*nlay*(i+1)];
-                    S_ini[i+charge*nlay*i] = sqrt(ERR_INI*ERR_INI-S_ini[i+1+charge*nlay*i]*S_ini[i+1+charge*nlay*i]);
-                }
-                x_ini[i] =(i<2*NLAYERS)?rho_ini/*RES_INI*/:.0001;
-            }
-#endif
-            ft = !ft;
-/*
-            double P[NLAYERS*NLAYERS];
-            for(int i=0;i<NLAYERS;i++) {
-                for(int j=0;j<NLAYERS;j++) {
-                    P[i+j*NLAYERS] = 0;
-                    for(int k=0;k<NLAYERS;k++)
-                        P[i+j*NLAYERS] += S_ini[k+i*NLAYERS]*S_ini[k+j*NLAYERS];
-                }
-            }
-*/
             memcpy(S0,S_ini,sizeof(Sr));
         } else { // restart S for the next point. x_ini is tied to the initial resistivity
             memset(S_ini,0,sizeof(S_ini));
-            for(int i=(charge*NPLAYERS+nlay+NFLAYERS)-1;i>=charge*NPLAYERS+nlay;i--) {
-                S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] = S0[i+(charge*NPLAYERS+nlay+NFLAYERS)*i];
-                x_ini[i] = .97*x_ini[i]+.03*DEP_INI;
-            }
-            for(int i=(charge*NPLAYERS+nlay)-1;i>=0;i--) {
-                S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i] = S0[i+(charge*NPLAYERS+nlay+NFLAYERS)*i];
-                if(i<(charge*NPLAYERS+nlay+NFLAYERS)-1)
-                    S_ini[i+(charge*NPLAYERS+nlay+NFLAYERS)*i+1] = S0[i+(charge*NPLAYERS+nlay+NFLAYERS)*i+1];
-                if(NPLAYERS) {
-                    x_ini[i] =
-                        (i<NLAYERS+NPLAYERS+NFLAYERS)?
-//                            sqrt(sqrt(rho_ini/*RES_INI*/*x_ini[i])*x_ini[i]):
-                            (rho_ini*(1-1./weight)+x_ini[i]/weight):
-                            sqrt(sqrt(.0001*x_ini[i])*x_ini[i]);
-                } else {
-                    x_ini[i] = (rho_ini*(1-1./weight)+x_ini[i]/weight);
-                }
+            for(int i=nlay-1;i>=0;i--) {
+                S_ini[i+nlay*i] = S0[i+nlay*i];
+                if(i<nlay-1)
+                    S_ini[i+nlay*i+1] = S0[i+nlay*i+1];
+                x_ini[i] = (rho_ini*(1-1./weight)+x_ini[i]/weight);
             }
         }
         memcpy(Sr,S_ini,sizeof(Sr));
@@ -1176,7 +583,7 @@ int main(int argc, char **argv)
 	// itereative inversion for fixed layers
         for (iter = 0;iter < MAX_ITER; iter++) {
             memcpy(S_ini,Sr,sizeof(Sr));
-            flinversion(geo,NFREQS,nlay,x_ini,dpth,y_ini,y_mes,&res,&up,S_ini);
+            flinversion(geo,freq_num,nlay,x_ini,dpth,y_ini,y_mes,&res,&up,S_ini, freqs);
             if(sqrt(res) <STOP_VAL) break;
             if(up) break;
         }
@@ -1188,8 +595,8 @@ int main(int argc, char **argv)
         printf("\n");
 
         fprintf(fout, "%s %f %d ",time, res, iter);
-        for(int i=0;i<(charge*NPLAYERS+nlay);i++) {
-            if(i<NPLAYERS+nlay)
+        for(int i=0;i<nlay;i++) {
+            if(i<nlay)
                 fprintf(fout,"%.3f ",x_ini[i]);
             else
                 fprintf(fout,"%.3f ",x_ini[i]*1000.);
@@ -1205,11 +612,11 @@ int main(int argc, char **argv)
         fprintf(fout,"%.3f %.3f ",depp+dpth[nlay-2]*.5,rho_ini);
         printf("\n");
 
-        for(int i=0;i<(charge*NPLAYERS+nlay+NFLAYERS);i++) {
+        for(int i=0;i<nlay;i++) {
             double v = 0, v1 = 0;
-            for (int j=i;j<(charge*NPLAYERS+nlay+NFLAYERS);j++) {
-                v+= S_ini[i*(charge*NPLAYERS+nlay+NFLAYERS)+j]*S_ini[i*(charge*NPLAYERS+nlay+NFLAYERS)+j];
-                v1+= Sr[i*(charge*NPLAYERS+nlay+NFLAYERS)+j]*Sr[i*(charge*NPLAYERS+nlay+NFLAYERS)+j];
+            for (int j=i;j<nlay;j++) {
+                v+= S_ini[i*nlay+j]*S_ini[i*nlay+j];
+                v1+= Sr[i*nlay+j]*Sr[i*nlay+j];
             }
             fprintf(fout,"%.7f ",1 - sqrt(v/v1));
             printf("%f ",1 - sqrt(v/v1));
