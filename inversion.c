@@ -175,7 +175,9 @@ int flinversion(geometry geo,
                 double *residual,
                 int *up,
                 double *S,
-		double *freqs) {// both x_ and y_ are in log-axes
+		double *freqs,
+		double *upper,
+		double *lower) {// both x_ and y_ are in log-axes
 
     int lay_num = nlay;
     int freq_num = bfr;
@@ -215,9 +217,8 @@ int flinversion(geometry geo,
         return 0;
 
     // Jacobian matrix calculation
-    int val = nlay;
-    for(i=0;i<val;i++) {
-        for(j=0;j<val;j++) {
+    for(i=0;i<nlay;i++) {
+        for(j=0;j<nlay;j++) {
             double k = 10;
             x1[j] = x_ini[j] * ( (i!=j)? 1. : (1.-k*DELTA) );
         }
@@ -231,10 +232,10 @@ int flinversion(geometry geo,
 
     // Step (by step) a-la FK
     for(j=0;j<2*bfr;j++) {
-        proc(val,nlay,dx,S,log(fabs(y_ini[j]/y_mes[j])),Jacob[j],1./(geo.w[j]*y_mes[j]*geo.w[j]*y_mes[j]));
+        proc(nlay,nlay,dx,S,log(fabs(y_ini[j]/y_mes[j])),Jacob[j],1./(geo.w[j]*y_mes[j]*geo.w[j]*y_mes[j]));
     }
 
-    for(i=0;i<val;i++) {
+    for(i=0;i<nlay;i++) {
         x0[i] = xini[i]*exp(-dx[i]);
         if(isnan(x0[i])) x0[i] = xini[i];
         if(x0[i]>upper[i]) x0[i] = upper[i];
@@ -252,7 +253,7 @@ int flinversion(geometry geo,
     int cntr = 0;
     while(res>*residual*1.01) {
         if(cntr++ > 3) break;
-        for(i=0;i<val;i++) {
+        for(i=0;i<nlay;i++) {
             dx[i]*=.5;
             x0[i] = x_ini[i]*exp(-dx[i]);
             if(isnan(x0[i])) x0[i] = xini[i];
@@ -309,9 +310,9 @@ int main(int argc, char **argv)
         return 0;
     }
     FILE *conf = fopen("configuration.txt", "rt");
-    char buf[2000];
+    char buf[2000], tmp[256];
 
-    int i, freq_num, pos;
+    int i, freq_num, pos, is_digit, j, read_num;
     size_t n = 0;
     double *values, *args, *freqs;
 
@@ -319,19 +320,36 @@ int main(int argc, char **argv)
     fgets(buf, 2000, conf);
     fgets(buf, 2000, conf);
     freq_num = atoi(buf);
-    values = (double *)malloc((2*freq_num)*sizeof(double));
+    values = (double *)malloc((2*freq_num + 100)*sizeof(double));
     args = (double *)malloc((12 + 3*freq_num)*sizeof(double));
     freqs = (double *)malloc(freq_num*sizeof(double));
     args[0] = freq_num;
 
+    memset(buf, 0, sizeof(buf));
+
     //Read lay_num, first_thick, step
     fgets(buf, 2000, conf);
     fgets(buf, 2000, conf);
-    char *p = buf;
-    for(pos = 0; n < 3 && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
-	   ++n;
-
-    n = 0;
+    is_digit = 0;
+    j = 0;
+    read_num = 0;
+    for(i = 0; i < 2000; i++){
+        if((buf[i]>='0' && buf[i]<='9')||buf[i]=='.'||buf[i]==','){
+               tmp[j] = buf[i];
+	       j++;
+	       is_digit = 1;
+	} else{
+               if(is_digit==1){
+		  values[read_num] = atof(tmp);
+		  read_num++;
+                  is_digit = 0;
+		  for(j = 0; j < 256; j++)
+	          tmp[j] = (char) 0;
+	       }
+	       j = 0;
+        }
+    }
+    
     args[1] = values[0];
     args[2] = values[1];
     args[3] = values[2];
@@ -339,43 +357,117 @@ int main(int argc, char **argv)
     //Read freqs
     fgets(buf, 2000, conf);
     fgets(buf, 2000, conf);
-    p = buf;
-    for(pos = 0; n < freq_num && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
-	   ++n;
-    for(i = 0; i < freq_num; i++)
-	   args[4+i] = values[i];
 
-    n = 0;
+    is_digit = 0;
+    j = 0;
+    read_num = 0;
+    for(i = 0; i < 2000; i++){
+        if((buf[i]>='0' && buf[i]<='9')||buf[i]=='.'||buf[i]==','){
+               tmp[j] = buf[i];
+	       j++;
+	       is_digit = 1;
+	} else{
+               if(is_digit==1){
+		  values[read_num] = atof(tmp);
+		  read_num++;
+                  is_digit = 0;
+		  for(j = 0; j < 256; j++)
+	          tmp[j] = (char) 0;
+	       }
+	       j = 0;
+        }
+    }
+
+    for(i = 0; i < freq_num; i++){
+	   args[4+i] = values[i];
+           freqs[i] = values[i];
+    }
+
 
 //Read R_i_i
     fgets(buf, 2000, conf);
     fgets(buf, 2000, conf);
-    p = buf;
-    for(pos = 0; n < 2*freq_num && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
-	   ++n;
 
-    n = 0;
+ 
+    is_digit = 0;
+    j = 0;
+    read_num = 0;
+    for(i = 0; i < 2000; i++){
+        if((buf[i]>='0' && buf[i]<='9')||buf[i]=='.'||buf[i]==','){
+               tmp[j] = buf[i];
+	       j++;
+	       is_digit = 1;
+	} else{
+               if(is_digit==1){
+		  values[read_num] = atof(tmp);
+		  read_num++;
+                  is_digit = 0;
+		  for(j = 0; j < 256; j++)
+	          tmp[j] = (char) 0;
+	       }
+	       j = 0;
+        }
+    }
+
+
+
     for(i = 0; i < 2*freq_num; i++)
 	   args[4 + freq_num + i] = values[i];
 
 //Read P0[0][0], P0[0][1]
     fgets(buf, 2000, conf);
     fgets(buf, 2000, conf);
-    p = buf;
-    for(pos = 0; n < 2 && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
-	   ++n;
 
-    n = 0;
+
+    is_digit = 0;
+    j = 0;
+    read_num = 0;
+    for(i = 0; i < 2000; i++){
+        if((buf[i]>='0' && buf[i]<='9')||buf[i]=='.'||buf[i]==','){
+               tmp[j] = buf[i];
+	       j++;
+	       is_digit = 1;
+	} else{
+               if(is_digit==1){
+		  values[read_num] = atof(tmp);
+		  read_num++;
+                  is_digit = 0;
+		  for(j = 0; j < 256; j++)
+	          tmp[j] = (char) 0;
+	       }
+	       j = 0;
+        }
+    }
+
+
+
     double ERR_INI = args[4 + 2*freq_num] = values[0];
     double COR_INI = args[5 + 2*freq_num] = values[1];
 //Read position of measurements, hor_dist, ver_dist, alt
     fgets(buf, 2000, conf);
     fgets(buf, 2000, conf);
-    p = buf;
-    for(pos = 0; n < 5 && sscanf(p, "%f%n", values + n, &pos)==1; p+=pos)
-	   ++n;
 
-    n = 0;
+
+    is_digit = 0;
+    j = 0;
+    read_num = 0;
+    for(i = 0; i < 2000; i++){
+        if((buf[i]>='0' && buf[i]<='9')||buf[i]=='.'||buf[i]==','){
+               tmp[j] = buf[i];
+	       j++;
+	       is_digit = 1;
+	} else{
+               if(is_digit==1){
+		  values[read_num] = atof(tmp);
+		  read_num++;
+                  is_digit = 0;
+		  for(j = 0; j < 256; j++)
+	          tmp[j] = (char) 0;
+	       }
+	       j = 0;
+        }
+    }
+
     args[6 + 2*freq_num] = values[0];
     args[7 + 2*freq_num] = values[1];
     args[8 + 2*freq_num] = values[2];
@@ -395,12 +487,14 @@ int main(int argc, char **argv)
     double S_pre[lay_num*lay_num];
     double S0[lay_num*lay_num];
     double y_ini[2*freq_num];
+    double upper[lay_num];
+    double lower[lay_num];
     int hor_dist_pos = (int)(args[8 + 2*freq_num]);
     int ver_dist_pos = (int)(args[9 + 2*freq_num]);
     int alt_pos = (int)(args[10 + 2*freq_num]);
-    int first_mes_pos = (int)(args[6]);		    
+    int first_mes_pos = (int)(args[6 + 2*freq_num]);		    
     int up = 0;
-    int s7 = 4, s7c = 0;
+    int s7 = AVERAGE, s7c = 0;
     double mesv[2*freq_num];
     double alta = 0;
     double vda = 0;
@@ -432,7 +526,7 @@ int main(int argc, char **argv)
     geo.prim = 1./mom; //5099041845; // Equator's primary to get 10000 A/m in FD!!! - greater than 5.e9 Am2
                        //5563098240;//!!!!!! For 2200:5 in Croatia!!!! // primField(28.21,28.54)/.92;
                        //6489173050;//!!!!!! For 2110:2 in Croatia!!!! // primField(29.3,27.8)/.82;
-
+    geo.w = (double *)malloc(2*freq_num*sizeof(double));
     memset(geo.w,0,sizeof(geo.w));
     //Setting R_i_i
     
@@ -474,18 +568,34 @@ int main(int argc, char **argv)
             memset(buf,0,sizeof(buf));
             continue;
         }
-
-        char *p = data;
-	n = 0;
-	for(pos = 0;n<3+2*freq_num+100&&
-			sscanf(p, "%f%n", values + n, &pos) == 1; p+=pos)
-		++n;
+        is_digit = 0;
+        j = 0;
+        read_num = 0;
+        for(i = 0; i < 2000; i++){
+            if((data[i]>='0' && data[i]<='9')||data[i]=='.'||data[i]==','){
+                 tmp[j] = data[i];
+	         j++;
+	         is_digit = 1;
+	    } else{
+                 if(is_digit==1){
+		    values[read_num] = atof(tmp);
+		    read_num++;
+                    is_digit = 0;
+		    for(j = 0; j < 256; j++)
+	               tmp[j] = (char) 0;
+	         }
+	         j = 0;
+            }
+        }
+    
 	geo.hor_dist = values[hor_dist_pos];
 	geo.ver_dist = values[ver_dist_pos];
 	geo.alt = values[alt_pos];
 
-	for(i = 0; i<2*freq_num; i++)
-		y_mes[i] = values[first_mes_pos + i];
+	for(i = 0; i<freq_num; i++){
+		y_mes[2*i] = values[first_mes_pos + freq_num + i];
+                y_mes[2*i + 1] = values[first_mes_pos + i]; 
+        }
 
 
         memset(buf,0,sizeof(buf));
@@ -507,7 +617,7 @@ int main(int argc, char **argv)
         geo.alt = alta/s7c;
         geo.ver_dist = vda/s7c;
         s7c = 0;
-        s7 = 4;
+        s7 = AVERAGE;
         memset(mesv,0,sizeof(mesv));
         alta = 0;
         vda = 0;
@@ -533,7 +643,7 @@ int main(int argc, char **argv)
         for (itr = 0;itr < MAX_ITER; itr++) {
             double d_ini = ERR_INI;
             int up = 0;
-            flinversion(geo,1,1,&rho_ini,dpth,y_ini,y_mes,&res,&up,&d_ini, freqs);
+            flinversion(geo,1,1,&rho_ini,dpth,y_ini,y_mes,&res,&up,&d_ini, freqs, upper, lower);
             if(sqrt(res) <STOP_VAL) break;
             if(up) break;
         }
@@ -567,7 +677,7 @@ int main(int argc, char **argv)
                 }
                 x_ini[i] = rho_ini;
             }
-
+            ft = !ft;
             memcpy(S0,S_ini,sizeof(Sr));
         } else { // restart S for the next point. x_ini is tied to the initial resistivity
             memset(S_ini,0,sizeof(S_ini));
@@ -583,7 +693,7 @@ int main(int argc, char **argv)
 	// itereative inversion for fixed layers
         for (iter = 0;iter < MAX_ITER; iter++) {
             memcpy(S_ini,Sr,sizeof(Sr));
-            flinversion(geo,freq_num,nlay,x_ini,dpth,y_ini,y_mes,&res,&up,S_ini, freqs);
+            flinversion(geo,freq_num,nlay,x_ini,dpth,y_ini,y_mes,&res,&up,S_ini, freqs, upper, lower);
             if(sqrt(res) <STOP_VAL) break;
             if(up) break;
         }

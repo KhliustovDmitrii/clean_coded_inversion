@@ -1,7 +1,7 @@
 Number of frequencies:
 15
 Number of layers, thickness of first layer, multiplying factor:
-1 4 1.1085
+25 4 1.1085
 Frequencies:
 77 231.5 386 540 694.5 848.77 1003 1466 1620 1775 2855 4244 5324 9799 15046
 Variances of measurement for each frequency:
