@@ -74,15 +74,27 @@ double complex PartSum(double n0,double hh,double complex n1,double r,double com
 }
 
 double complex Impedance(int n, double n0, double om, double *rho, double *dep) {
-    int i;
+    int i, m;
     double complex ni,nim1;
     double complex Imp;
+    double dpth;
+
     Imp = 1;
     nim1 = csqrt(n0*n0 - I*om*mu0/rho[n-1]);
-    for(i=n-1;i>0;i--) {
-    ni = nim1;
-    nim1 = csqrt(n0*n0 - I*om*mu0/rho[i-1]);
-    Imp = ctanh(nim1*dep[i-1]+catanh(nim1/ni*Imp));
+    dpth = 0;
+    m = n - 1;
+    while(m>0 && fabs(rho[m] - rho[m-1])<0.01) m--;
+
+    for(i=m;i>0;i--){ 
+		     dpth+=dep[i-1];
+		     while(i>1 && fabs(rho[i-2] - rho[i-1])<0.01){
+			   dpth+=dep[i-2];
+			   i--;
+		     }
+                     ni = nim1;
+                     nim1 = csqrt(n0*n0 - I*om*mu0/rho[i-1]);
+                     Imp = ctanh(nim1*dpth+catanh(nim1/ni*Imp));
+		     dpth = 0;
     }
     return Imp;
 }
@@ -100,7 +112,7 @@ double complex integral(int n,double hh,double r,double *rho,double *dep,double 
     c = I*(-om*sigma*mu0);        //  4pi * 1.e-7 * 2pi (Hz -> 1/sec)
 
     #define VAL .001
-    for(n0=VAL,dn0=VAL;n0<1;n0+=dn0) {
+    for(n0=VAL,dn0=VAL;n0<0.85;n0+=dn0) {
         n1 = csqrt(n0*n0+c);
         Imp = Impedance(n,n0,om,rho,dep);
         PS  = PartSum(n0,hh,n1,r,Imp);
@@ -125,12 +137,17 @@ void fdfun(geometry geo, int nlay, int bfr,double *x, double *y, double *freqs) 
         y[2*i+1] = cimag(refl);
         if(i>bfr) break;
     }
+    
         for(i=0;i<bfr;i++) {
-            if(i<freq_num-1)
+            if(i<freq_num-1){
                 y[2*i+1] = y[2*(i+1)+1] - y[2*i+1];
-            else
-                y[2*i+1] = y[2*(i-1)+1];
+	    }
+            else{
+		if(bfr > 1)
+                       y[2*i+1] = y[2*(i-1)+1];
+	    }
         }
+     
 }
 
 
@@ -241,8 +258,6 @@ int flinversion(geometry geo,
         if(x0[i]>upper[i]) x0[i] = upper[i];
         if(x0[i]<lower[i]) x0[i] = lower[i];
     }
-    for(i=nlay;i<2*nlay-1;i++)
-        x0[i] = x1[i];
 
     fdfun(geo,nlay,bfr,x0,y_ini, freqs);
     for(j=0;j<2*bfr;j++){
@@ -441,8 +456,8 @@ int main(int argc, char **argv)
 
 
 
-    double ERR_INI = args[4 + 2*freq_num] = values[0];
-    double COR_INI = args[5 + 2*freq_num] = values[1];
+    double ERR_INI = args[4 + 3*freq_num] = values[0];
+    double COR_INI = args[5 + 3*freq_num] = values[1];
 //Read position of measurements, hor_dist, ver_dist, alt
     fgets(buf, 2000, conf);
     fgets(buf, 2000, conf);
@@ -468,11 +483,11 @@ int main(int argc, char **argv)
         }
     }
 
-    args[6 + 2*freq_num] = values[0];
-    args[7 + 2*freq_num] = values[1];
-    args[8 + 2*freq_num] = values[2];
-    args[9 + 2*freq_num] = values[3];
-    args[10 + 2*freq_num] = values[4];
+    args[6 + 3*freq_num] = values[0];
+    args[7 + 3*freq_num] = values[1];
+    args[8 + 3*freq_num] = values[2];
+    args[9 + 3*freq_num] = values[3];
+    args[10 + 3*freq_num] = values[4];
 
     geometry geo;
     char *data;
@@ -489,10 +504,10 @@ int main(int argc, char **argv)
     double y_ini[2*freq_num];
     double upper[lay_num];
     double lower[lay_num];
-    int hor_dist_pos = (int)(args[8 + 2*freq_num]);
-    int ver_dist_pos = (int)(args[9 + 2*freq_num]);
-    int alt_pos = (int)(args[10 + 2*freq_num]);
-    int first_mes_pos = (int)(args[6 + 2*freq_num]);		    
+    int hor_dist_pos = (int)(args[8 + 3*freq_num]);
+    int ver_dist_pos = (int)(args[9 + 3*freq_num]);
+    int alt_pos = (int)(args[10 + 3*freq_num]);
+    int first_mes_pos = (int)(args[6 + 3*freq_num]);		    
     int up = 0;
     int s7 = AVERAGE, s7c = 0;
     double mesv[2*freq_num];
@@ -504,16 +519,16 @@ int main(int argc, char **argv)
     int nlay = lay_num;
     double weight = 1000.;
     for(int i=0;i<lay_num;i++)
-        upper[i] = (i<lay_num) ? 20000 : 1.;
+        upper[i] = 20000;
     for(int i=0;i<lay_num;i++)
-        lower[i] = (i<lay_num) ? 0.1 : .000001;
+        lower[i] = 0.1;
 
     memset(mesv,0,sizeof(mesv));
 
     memset(time, 0, sizeof(time));
 
     // Layers thicknesses are fixed here !!!
-    for(int i=0;i<lay_num;i++,d*=args[3]) dpth[i] = d;
+    for(int i=0;i<lay_num-1;i++,d*=args[3]) dpth[i] = d;
 
     data = buf + 13; // it's an offset to skip time in the string
 
@@ -531,14 +546,14 @@ int main(int argc, char **argv)
     //Setting R_i_i
     
     for(i = 0; i < 2*freq_num; i++)
-	    geo.w[i] = args[4 + freq_num + i];
+	    geo.w[i] = 1/args[4 + freq_num + i];
 
     for(int i=0;i<freq_num-1;i++)
         geo.w[i*2+1] = sqrt(geo.w[i*2+1]*geo.w[i*2+1]+geo.w[(i+1)*2+1]*geo.w[(i+1)*2+1]);
 
 
     for(int lr = 0;lr<lay_num;lr++)
-        rho[lr] = (lr<lay_num)?RES_INI:.0001;
+        rho[lr] = RES_INI;
 
     memset(x_ini,0,sizeof(x_ini));
     memset(S_ini,0,sizeof(S_ini));
@@ -556,7 +571,7 @@ int main(int argc, char **argv)
             fputs(buf,fout);
             printf("%s",buf);
             for(int lr = 0;lr<lay_num;lr++)
-                rho[lr] = (lr<lay_num)?RES_INI:.0001;
+                rho[lr] = RES_INI;
             memset(buf,0,sizeof(buf));
             ft = 1;
             continue;
@@ -587,7 +602,7 @@ int main(int argc, char **argv)
 	         j = 0;
             }
         }
-    
+        ft = 1; 
 	geo.hor_dist = values[hor_dist_pos];
 	geo.ver_dist = values[ver_dist_pos];
 	geo.alt = values[alt_pos];
@@ -628,10 +643,13 @@ int main(int argc, char **argv)
 
     // It's a cricial point: we use differences of Inphase components instead of Inphase components!!!
             for(i=0;i<freq_num;i++) {
-                if(i<freq_num-1)
+                if(i<freq_num-1){
                     y_mes[2*i+1] = y_mes[2*(i+1)+1] - y_mes[2*i+1];
-                else
-                    y_mes[2*i+1] = y_mes[2*(i-1)+1];
+		}
+                else{
+		    if(freq_num > 1)
+                           y_mes[2*i+1] = y_mes[2*(i-1)+1];
+		}
             }
         
 
@@ -706,11 +724,8 @@ int main(int argc, char **argv)
 
         fprintf(fout, "%s %f %d ",time, res, iter);
         for(int i=0;i<nlay;i++) {
-            if(i<nlay)
                 fprintf(fout,"%.3f ",x_ini[i]);
-            else
-                fprintf(fout,"%.3f ",x_ini[i]*1000.);
-            printf("%f ",x_ini[i]);
+                printf("%f ",x_ini[i]);
         }
         double depp = 0;
         for(int i=0;i<nlay-1;i++) {
