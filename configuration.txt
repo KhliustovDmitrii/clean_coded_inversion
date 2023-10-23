@@ -7,6 +7,6 @@ Frequencies:
 Inverse of RMS for each frequency:
 0.21 0.27 0.1 0.24 0.07 0.26 0.12 0.28 0.35 0.3 0.82 0.89 0.41 0.58 0.53 0.47 0.28 0.55 0.42 0.35 0.15 0.38 0.27 0.91 0.82 0.78 0.89 0.86 0.94 0.92
 Initial variance of layer resistivity and neighboring correlation:
-0.09 0
+0.09 0.01
 File position of first and last measurements, hor_dist, alt_t, alt_b
 3 32 0 1 2 

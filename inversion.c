@@ -12,7 +12,7 @@
 #define RES_INI 300
 #define AVERAGE 4
 #define MAX_ITER 10
-#define DA 0
+#define DA 4
 #define STOP_VAL 1.0
 
 typedef struct {
