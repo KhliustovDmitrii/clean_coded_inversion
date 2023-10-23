@@ -9,10 +9,10 @@
 
 #define MIN_RES 0.01
 #define MAX_RES 20000.
-#define RES_INI 150
+#define RES_INI 300
 #define AVERAGE 4
 #define MAX_ITER 10
-#define DA -4
+#define DA 0
 #define STOP_VAL 1.0
 
 typedef struct {
@@ -703,7 +703,7 @@ int main(int argc, char **argv)
                 S_ini[i+nlay*i] = S0[i+nlay*i];
                 if(i<nlay-1)
                     S_ini[i+nlay*i+1] = S0[i+nlay*i+1];
-                x_ini[i] = (rho_ini*(1-1./weight)+x_ini[i]/weight);
+                //x_ini[i] = (rho_ini*(1-1./weight)+x_ini[i]/weight);
             }
         }
         memcpy(Sr,S_ini,sizeof(Sr));
