@@ -112,10 +112,21 @@ double complex integral(int n,double hh,double r,double *rho,double *dep,double 
     c = I*(-om*sigma*mu0);        //  4pi * 1.e-7 * 2pi (Hz -> 1/sec)
 
     #define VAL .001
-    for(n0=VAL,dn0=VAL;n0<0.85;n0+=dn0) {
+    for(n0=VAL,dn0=VAL;n0<1;n0+=dn0) {
         n1 = csqrt(n0*n0+c);
         Imp = Impedance(n,n0,om,rho,dep);
         PS  = PartSum(n0,hh,n1,r,Imp);
+	if(isnan(creal(PS))){
+               if(isnan(cimag(PS))){
+                    PS = 0 + 0*I;
+	       } else{
+                    PS = 0 + cimag(PS)*I;
+	       }
+	} else {
+               if(isnan(cimag(PS)))
+		    PS = creal(PS) + 0*I;
+ 
+        }
         intl += dn0*PS;
 	}
     return intl;
@@ -243,6 +254,7 @@ int flinversion(geometry geo,
         double div = log(x1[i]/x_ini[i]);
         for(j=0;j<2*bfr;j++) {
             Jacob[j][i] = log(fabs(y1[j]/y_ini[j]));
+	    if(isnan(Jacob[j][i])) Jacob[j][i] = 0;
             Jacob[j][i]/=div;
         }
     }
@@ -703,7 +715,7 @@ int main(int argc, char **argv)
                 S_ini[i+nlay*i] = S0[i+nlay*i];
                 if(i<nlay-1)
                     S_ini[i+nlay*i+1] = S0[i+nlay*i+1];
-                //x_ini[i] = (rho_ini*(1-1./weight)+x_ini[i]/weight);
+                x_ini[i] = (rho_ini*(1-1./weight)+x_ini[i]/weight);
             }
         }
         memcpy(Sr,S_ini,sizeof(Sr));
@@ -712,6 +724,21 @@ int main(int argc, char **argv)
         for (iter = 0;iter < MAX_ITER; iter++) {
             memcpy(S_ini,Sr,sizeof(Sr));
             flinversion(geo,freq_num,nlay,x_ini,dpth,y_ini,y_mes,&res,&up,S_ini, freqs, upper, lower);
+        printf("Iter = %d\n", iter);
+	/*
+        for(int i=0;i<nlay;i++) {
+            double v = 0, v1 = 0;
+            for (int j=i;j<nlay;j++) {
+                v+= S_ini[i*nlay+j]*S_ini[i*nlay+j];
+                v1+= Sr[i*nlay+j]*Sr[i*nlay+j];
+            }
+            printf("%f ",1 - sqrt(v/v1));
+        }
+	printf("\n");
+
+	for(int i = 0; i < nlay; i++) printf("%f ", x_ini[i]);
+	printf("\n");
+        */
             if(sqrt(res) <STOP_VAL) break;
             if(up) break;
         }
