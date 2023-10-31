@@ -526,6 +526,7 @@ int main(int argc, char **argv)
     double alta = 0;
     double vda = 0;
     int ft = 1;
+    int start_with_rho_ini = 1;
     int data_cntr = 0;
     double dpth[lay_num],d=args[2];
     int nlay = lay_num;
@@ -705,8 +706,10 @@ int main(int argc, char **argv)
                      sqrt(ERR_INI*ERR_INI-S_ini[i+1+nlay*i]*
                             S_ini[i+1+nlay*i]);
                 }
-                x_ini[i] = rho_ini;
+		if(start_with_rho_ini)
+                	x_ini[i] = rho_ini;
             }
+	    start_with_rho_ini = 0;
             ft = !ft;
             memcpy(S0,S_ini,sizeof(Sr));
         } else { // restart S for the next point. x_ini is tied to the initial resistivity
