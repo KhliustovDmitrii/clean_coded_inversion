@@ -709,7 +709,7 @@ int main(int argc, char **argv)
 		if(start_with_rho_ini)
                 	x_ini[i] = rho_ini;
             }
-	    start_with_rho_ini = 0;
+	    //start_with_rho_ini = 0;
             ft = !ft;
             memcpy(S0,S_ini,sizeof(Sr));
         } else { // restart S for the next point. x_ini is tied to the initial resistivity
