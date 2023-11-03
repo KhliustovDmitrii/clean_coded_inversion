@@ -1,12 +1,12 @@
 Number of frequencies:
-15
+21
 Number of layers, thickness of first layer, multiplying factor:
 25 4 1.1085
 Frequencies:
-77 231.5 386 540 694.5 848.77 1003 1466 1620 1775 2855 4244 5324 9799 15046
+77 231.5 386 540 694.5 1003 1157 1312 1466 1620 1775 1929 2083 2238 2855 3009 3164 3318 3472 6173 13503
 Inverse of RMS for each frequency:
-0.21 0.27 0.1 0.24 0.07 0.26 0.12 0.28 0.35 0.3 0.82 0.89 0.41 0.58 0.53 0.47 0.28 0.55 0.42 0.35 0.15 0.38 0.27 0.91 0.82 0.78 0.89 0.86 0.94 0.92
+0.21 0.27 0.1 0.24 0.07 0.26 0.12 0.28 0.35 0.3 0.42 0.49 0.41 0.58 0.53 1.07 0.28 0.55 0.42 0.35 0.15 0.38 0.27 0.91 0.82 0.48 0.39 0.46 0.44 0.52 0.59 0.45 0.38 0.49 0.17 0.25 0.44 0.65 0.6 0.67 0.9 0.92
 Initial variance of layer resistivity and neighboring correlation:
 0.09 0.01
 File position of first and last measurements, hor_dist, alt_t, alt_b
-3 32 0 1 2 
+3 44 0 1 2 
