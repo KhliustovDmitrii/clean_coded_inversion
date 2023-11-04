@@ -549,7 +549,7 @@ int main(int argc, char **argv)
         upper[i] = 20000;
     upper[lay_num] = 2*d;
     for(int i=0;i<lay_num;i++)
-        lower[i] = 0.1;
+        lower[i] = 0.01;
     lower[lay_num] = -2*d;
 
     memset(mesv,0,sizeof(mesv));
