@@ -5,7 +5,7 @@ Number of layers, thickness of first layer, multiplying factor:
 Frequencies:
 130.21 520.84 2083.36 8333.44
 Inverse of RMS for each frequency:
-0.39 0.39 0.15 0.15 0.39 0.39 0.43 0.43
+0.45 0.45 0.91 0.91 5.7 5.7 2.6 2.6
 ERR_INI, COR_INI:
 0.3 0.1
 File position of first and last measurements, hor_dist, ver_dist, alt
