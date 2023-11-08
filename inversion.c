@@ -530,6 +530,8 @@ int main(int argc, char **argv)
     double y_ini[2*freq_num];
     double upper[lay_num + 1];
     double lower[lay_num + 1];
+    double upper_ini[2];
+    double lower_ini[2];
     int hor_dist_pos = (int)(args[8 + 3*freq_num]);
     int ver_dist_pos = (int)(args[9 + 3*freq_num]);
     int alt_pos = (int)(args[10 + 3*freq_num]);
@@ -551,6 +553,10 @@ int main(int argc, char **argv)
     for(int i=0;i<lay_num;i++)
         lower[i] = 0.01;
     lower[lay_num] = -2*d;
+    upper_ini[0] = 20000;
+    upper_ini[1] = 2*d;
+    lower_ini[0] = 0.01;
+    lower_ini[1] = -2*d;
 
     memset(mesv,0,sizeof(mesv));
 
@@ -696,7 +702,7 @@ int main(int argc, char **argv)
 	    d_ini[0] = ERR_INI;
 	    d_ini[3] = 0.25;
             int up = 0;
-            flinversion(geo,1,1, rho_DA_ini,dpth,y_ini,y_mes,&res,&up, d_ini, freqs, upper, lower);
+            flinversion(geo,1,1, rho_DA_ini,dpth,y_ini,y_mes,&res,&up, d_ini, freqs, upper_ini, lower_ini);
             rho_ini = rho_DA_ini[0];
 	    if(rho_DA_ini[1] > 2*dpth[0]) rho_DA_ini[1] = 2*dpth[0];
 	    if(sqrt(res) <STOP_VAL) break;
