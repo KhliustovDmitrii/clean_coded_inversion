@@ -349,7 +349,7 @@ int main(int argc, char **argv)
         printf("inversion file_in file_out\n");
         return 0;
     }
-    FILE *conf = fopen("configuration.txt", "rt");
+    FILE *conf = fopen("configuration_4_freqs.txt", "rt");
     char buf[2000], tmp[256];
 
     int i, freq_num, pos, is_digit, j, read_num;
@@ -518,7 +518,7 @@ int main(int argc, char **argv)
     char *data;
     //char time[23];
     //for double spaces
-    char time[15];
+    char time[19];
     double y_mes[2*freq_num];
     int lay_num = (int)(args[1] + 0.1);
     double rho[lay_num];
@@ -565,7 +565,7 @@ int main(int argc, char **argv)
     // Layers thicknesses are fixed here !!!
     for(int i=0;i<lay_num-1;i++,d*=args[3]) dpth[i] = d;
 
-    data = buf + 18; // it's an offset to skip time in the string
+    data = buf + 19; // it's an offset to skip time in the string
 
     FILE *fin  = fopen(argv[1],"rt");
     FILE *fout = fopen(argv[2],"wt");
