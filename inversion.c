@@ -518,7 +518,7 @@ int main(int argc, char **argv)
     char *data;
     //char time[23];
     //for double spaces
-    char time[18];
+    char time[15];
     double y_mes[2*freq_num];
     int lay_num = (int)(args[1] + 0.1);
     double rho[lay_num];
