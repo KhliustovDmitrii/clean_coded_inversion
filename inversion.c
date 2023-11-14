@@ -9,7 +9,7 @@
 
 #define MIN_RES 0.01
 #define MAX_RES 20000.
-#define RES_INI 300
+#define RES_INI 1
 #define AVERAGE 4
 #define MAX_ITER 10
 #define DA 0
@@ -691,15 +691,17 @@ int main(int argc, char **argv)
 
     // calculating of a half-space for the lowerest frequency!!!
     // itereative inversion for fixed layers
+    
+
         double res = -1;
         double rho_ini = RES_INI;
 	rho_DA_ini[0] = RES_INI;
 	rho_DA_ini[1] = 0;
         int itr;
-        for (itr = 0;itr < MAX_ITER; itr++) {
+        for (itr = 0;itr < 1; itr++) {
             double d_ini[4];
 	    memset(d_ini, 0, sizeof(d_ini));
-	    d_ini[0] = ERR_INI;
+	    d_ini[0] = 0.001;
 	    d_ini[3] = 0.001;
             int up = 0;
             flinversion(geo,1,1, rho_DA_ini,dpth,y_ini,y_mes,&res,&up, d_ini, freqs, upper_ini, lower_ini);
@@ -707,6 +709,8 @@ int main(int argc, char **argv)
 	    if(sqrt(res) <STOP_VAL) break;
             if(up) break;
         }
+
+	rho_ini = RES_INI;
 
         res = sqrt(res);
 
