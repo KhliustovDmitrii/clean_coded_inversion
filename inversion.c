@@ -716,8 +716,9 @@ int main(int argc, char **argv)
 
         res = sqrt(res);
 
-        printf("%s %f %d %f %f",time, res, itr, rho_DA_ini[0], rho_DA_ini[1]);
+        fprintf(fout, "%s %f %d %f",time, res, itr, rho_DA_ini[0]);
         printf("\n");
+	continue;
 
 
 	//inversion
