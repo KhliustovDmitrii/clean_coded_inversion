@@ -717,7 +717,7 @@ int main(int argc, char **argv)
         res = sqrt(res);
 
         fprintf(fout, "%s %f %d %f",time, res, itr, rho_DA_ini[0]);
-        printf("\n");
+        fprintf(fout, "\n");
 	continue;
 
 
