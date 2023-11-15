@@ -9,9 +9,9 @@
 
 #define MIN_RES 0.01
 #define MAX_RES 20000.
-#define RES_INI 1
+#define RES_INI 10
 #define AVERAGE 4
-#define MAX_ITER 10
+#define MAX_ITER 5
 #define DA 0
 #define STOP_VAL 1.0
 
@@ -142,8 +142,10 @@ void fdfun(geometry geo, int nlay, int bfr,double *x, double *y, double *freqs) 
     int i;
     int freq_num = bfr;
     double complex refl;
+    double da = 0;
+    if(nlay>1) da = x[nlay];
     for(i=0;i<freq_num;i++) {
-        refl = ImHz(nlay,geo.hor_dist,2*(geo.alt + x[nlay])+geo.ver_dist,freqs[i],x,&(x[nlay + 1]))*I/geo.prim ;
+        refl = ImHz(nlay,geo.hor_dist,2*(geo.alt + da)+geo.ver_dist,freqs[i],x,&(x[nlay + 1]))*I/geo.prim ;
         y[2*i] = creal(refl);
         y[2*i+1] = cimag(refl);
         if(i>bfr) break;
@@ -522,7 +524,7 @@ int main(int argc, char **argv)
     double y_mes[2*freq_num];
     int lay_num = (int)(args[1] + 0.1);
     double rho[lay_num];
-    double rho_DA_ini[2];
+    double rho_DA_ini[4];
     double x_ini[lay_num + 1];
     double S_ini[(lay_num + 1)*(lay_num+1)];
     double S_pre[(lay_num + 1)*(lay_num+1)];
@@ -697,20 +699,20 @@ int main(int argc, char **argv)
         double rho_ini = RES_INI;
 	rho_DA_ini[0] = RES_INI;
 	rho_DA_ini[1] = 0;
+	rho_DA_ini[2] = 0;
+	rho_DA_ini[3] = 0;
         int itr;
-        for (itr = 0;itr < 1; itr++) {
+        for (itr = 0;itr < MAX_ITER; itr++) {
             double d_ini[4];
 	    memset(d_ini, 0, sizeof(d_ini));
-	    d_ini[0] = 0.001;
-	    d_ini[3] = 0.001;
+	    d_ini[0] = ERR_INI;
+	    d_ini[3] = 0.0000001;
             int up = 0;
             flinversion(geo,1,1, rho_DA_ini,dpth,y_ini,y_mes,&res,&up, d_ini, freqs, upper_ini, lower_ini);
             rho_ini = rho_DA_ini[0];
 	    if(sqrt(res) <STOP_VAL) break;
             if(up) break;
         }
-
-	rho_ini = RES_INI;
 
         res = sqrt(res);
 
