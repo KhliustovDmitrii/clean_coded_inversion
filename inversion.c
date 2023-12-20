@@ -9,7 +9,7 @@
 
 #define MIN_RES 0.01
 #define MAX_RES 20000.
-#define RES_INI 10
+#define RES_INI 4.222
 #define AVERAGE 4
 #define MAX_ITER 5
 #define DA 0

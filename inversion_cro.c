@@ -587,7 +587,7 @@ int main(int argc, char **argv)
     FILE *fout = fopen(argv[2],"wt");
     printf("data files opened");
     //double primField(double hd, double vd)
-    double mom = 10000/primField(28.8,27.8);
+    double mom = 10000/primField(59., 35.);
 //    double mom = 10000/primField(28.28,28.33);
     geo.prim = 1./mom; //5099041845; // Equator's primary to get 10000 A/m in FD!!! - greater than 5.e9 Am2
                        //5563098240;//!!!!!! For 2200:5 in Croatia!!!! // primField(28.21,28.54)/.92;
