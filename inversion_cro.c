@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <unistd.h>
 
 #define mu0 (M_PI*.4e-6)
 #define DELTA   .01
@@ -350,6 +351,12 @@ int main(int argc, char **argv)
     
 
     printf("inversion started\n");
+    fflush(stdout);
+
+
+
+
+ 
     if(argc != 3) {
         printf("inversion file_in file_out\n");
         return 0;
@@ -361,9 +368,48 @@ int main(int argc, char **argv)
     //strcat(cur_name, ".conf");
     strcat(ququ, cur_name);
     strcat(ququ, ".conf");
-   printf("%s\n", ququ);
-    FILE *conf = fopen(ququ, "rt");
-    printf("conf file opened");
+
+    char path_to[2048];
+    char *ptr_path_to;
+    strcpy(path_to, argv[1]);
+ 
+    ptr_path_to = path_to;
+    printf("argv[1]: %s\n", argv[1]);
+    printf("0 ptr_path_to: %s\n", ptr_path_to);
+    fflush(stdout);
+
+    int slash_count = 0;
+    int slash_i = 0;
+
+    while(slash_count < 6 && path_to[slash_i]!='\0'){
+        if(path_to[slash_i]=='/') slash_count++;
+        slash_i++;
+    }   
+    path_to[slash_i] = '\0';
+    printf("path_to: %s\n", path_to);
+    fflush(stdout);
+
+   strcat(path_to, ququ);
+   printf("%s\n", path_to);
+   fflush(stdout);
+
+   printf("[1] %s, [2] %s\n ", argv[1], argv[2]);
+   fflush(stdout);
+
+    FILE *conf = fopen(path_to, "r");
+
+    if(conf == NULL){
+        printf("Could not open conf file \n");
+         fflush(stdout);
+        return -1;
+    }
+
+
+    printf("conf file opened\n");
+    fflush(stdout);
+
+
+
     char buf[3000], tmp[256];
 
     int i, freq_num, pos, is_digit, j, read_num;
@@ -529,7 +575,11 @@ int main(int argc, char **argv)
     args[8 + 3*freq_num] = values[2];
     args[9 + 3*freq_num] = values[3];
     args[10 + 3*freq_num] = values[4];
-    printf("conf params obtained");
+
+    printf("conf params obtained\n");
+    fflush(stdout);
+
+
     geometry geo;
     char *data;
     //char time[23];
@@ -585,9 +635,10 @@ int main(int argc, char **argv)
 
     FILE *fin  = fopen(argv[1],"rt");
     FILE *fout = fopen(argv[2],"wt");
-    printf("data files opened");
+    printf("data files opened\n");
+    fflush(stdout);
     //double primField(double hd, double vd)
-    double mom = 10000/primField(59., 35.);
+    double mom = 10000/primField(28.8,27.8);
 //    double mom = 10000/primField(28.28,28.33);
     geo.prim = 1./mom; //5099041845; // Equator's primary to get 10000 A/m in FD!!! - greater than 5.e9 Am2
                        //5563098240;//!!!!!! For 2200:5 in Croatia!!!! // primField(28.21,28.54)/.92;
